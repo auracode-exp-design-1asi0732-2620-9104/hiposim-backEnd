@@ -1,0 +1,676 @@
+openapi: 3.0.3
+info:
+  title: HipoSim API
+  version: 0.1.0
+  description: |
+    Contract v0 (DRAFT) shared by the Android app, the advisor web app and the API.
+    Scope: health, authentication and the simulation endpoint (TS06, TS07, US01, US02, US04, US05, US13, US22, US26).
+    Leads and agencies (TS08, US21, GET /api/agencies) are not in this version.
+
+    **Conventions**
+    - JSON, camelCase property names, English identifiers.
+    - Rates are fractions: `0.085` means 8.5%. Never percentages.
+    - Amounts are in PEN with 2 decimals. Rates are rounded to 6 decimals. Dates use ISO 8601 (`2026-10-01`).
+    - Errors use `application/problem+json` (RFC 9457). Validation errors list each failing field under `errors`,
+      keyed by the camelCase request property (the ASP.NET Core default may emit PascalCase keys; align it).
+    - The example numbers in this file are real results of the financial engine (validated against AutoFinance Pro),
+      with the schedule shortened to 3 rows.
+
+    **Open questions for the team (proposed answer in brackets)**
+    1. Is `POST /api/simulations` public? [Yes, the buyer token is optional. Chapter 4.4.4: the simulator is free and
+       login is only asked when sending a quote.]
+    2. Is every calculation persisted? [Yes, and `simulationId` is returned so a lead can reference it. Chapter 4.8.3:
+       SimulationService persists the results.]
+    3. Defaults for monthly property insurance, monthly credit life insurance, administrative expenses and the NPV
+       discount rate. [Server-side configuration, echoed in `assumptions`. The Landing Page calculates no insurance and
+       the engine default discount rate is 10%.]
+    4. Which figure do the apps show as the monthly installment? [`monthlyInstallment`: capital plus interest, without
+       insurance. Each schedule row also has `totalPayment` with insurance.]
+    5. Ranges. [Term 60 to 360 months, taken from the Landing Page sliders (5 to 30 years). Maximum grace months: not defined.]
+    6. `npv` is calculated from the lender's side, so it is negative when the loan rate is below the discount rate.
+       How should the apps explain it to a buyer?
+    7. Administrative expenses count in `additionalCosts` but not in the TCEA cash flow (same as AutoFinance Pro).
+       Should they be part of the TCEA?
+    8. Registration fields (Carlos). [Full name, e-mail, phone, password and the two acceptances required by US13,
+       to be aligned with the existing mobile registration form.]
+    9. Rate type. [v0 accepts only the effective annual rate (TEA), like the example in chapter 5.2.6. Chapters 4.2.1
+       and 4.9 also mention TNA and a rate type; the engine already supports a nominal rate with capitalization.
+       Expose it in a later version only if the apps need it.]
+    10. Language of messages. [v0 messages are in English. The course asks for i18n in the API (es_419 and en_US):
+        decide between clients translating by field and an Accept-Language header.]
+servers:
+  - url: http://localhost:5000
+    description: Local development (placeholder, use the port of the launch profile)
+tags:
+  - name: Health
+    description: Availability check.
+  - name: Auth
+    description: Registration and login with JWT.
+  - name: Simulations
+    description: Mortgage simulation shared by the Landing Page, the web app and the mobile app.
+paths:
+  /health:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      summary: Check that the API is available
+      security: []
+      responses:
+        "200":
+          description: The API is up.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: Healthy
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      operationId: register
+      summary: Register a buyer account (TS07, US13)
+      description: |
+        Creates a user with the `buyer` role and signs the buyer in: the response carries the JWT (US13 scenario 1)
+        and the user data (TS07 scenario 1). Both acceptances must be `true`; otherwise the account is not created
+        and the response is 400 (US13 scenario 3). Draft, owner Carlos.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+            example:
+              fullName: Ana Torres
+              email: ana.torres@example.com
+              phone: "987654321"
+              password: S3gura-2026
+              acceptedTerms: true
+              acceptedDataProcessing: true
+      responses:
+        "201":
+          description: Account created and session started.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+              example:
+                accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example.signature
+                tokenType: Bearer
+                expiresIn: 28800
+                user:
+                  id: 7c1d0f52-4b3e-4a8d-9a1e-2f6b8c3d5e10
+                  fullName: Ana Torres
+                  email: ana.torres@example.com
+                  role: buyer
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          description: The email is already registered.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              example:
+                title: Email already registered.
+                status: 409
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      summary: Log in and get a JWT (TS07, US22, US26)
+      description: |
+        Works for buyers and advisors. The role travels in the token and in `user.role`. An advisor's token must also
+        carry the agency identifier, so leads can be limited to the advisor's agency (US22, TS08). A failed login never
+        says which of the two values is wrong (US26 scenario 2). Draft, owner Carlos.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            example:
+              email: ana.torres@example.com
+              password: S3gura-2026
+      responses:
+        "200":
+          description: Valid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+              example:
+                accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example.signature
+                tokenType: Bearer
+                expiresIn: 28800
+                user:
+                  id: 7c1d0f52-4b3e-4a8d-9a1e-2f6b8c3d5e10
+                  fullName: Ana Torres
+                  email: ana.torres@example.com
+                  role: buyer
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          description: Invalid credentials.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              example:
+                title: Invalid credentials.
+                status: 401
+  /api/simulations:
+    post:
+      tags: [Simulations]
+      operationId: createSimulation
+      summary: Calculate a mortgage simulation (TS06, US01, US04, US05)
+      description: |
+        Converts the rate, applies the Good Payer Bonus when requested and the property is in range, builds the French
+        amortization schedule and calculates TCEA, NPV and IRR.
+
+        **Good Payer Bonus (US05).** With `applyGoodPayerBonus: true`: if the price is inside a bonus range the amount is
+        subtracted from the financed amount (`benefit.eligible = true`, `benefit.appliedAmount > 0`). If the price is
+        outside every range the response is still 200, `benefit.eligible = false`, `benefit.appliedAmount = 0` and the
+        financed amount is not changed. With `applyGoodPayerBonus: false` the bonus is never applied.
+        The bonus table is a reference table copied from the Landing Page (not official) and will move to admin parameters.
+
+        `financedAmount = propertyPrice - downPayment - benefit.appliedAmount`.
+
+        Authentication is optional: with a valid `Authorization` header the simulation is associated with the buyer.
+      security:
+        - {}
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SimulationRequest"
+            examples:
+              withBonus:
+                summary: Property inside the bonus range (S/ 280,000, 15% down payment)
+                value:
+                  propertyPrice: 280000
+                  downPayment: 42000
+                  annualEffectiveRate: 0.085
+                  termInMonths: 240
+                  gracePeriodMonths: 0
+                  graceType: none
+                  applyGoodPayerBonus: true
+                  startDate: "2026-10-01"
+              outOfRange:
+                summary: Property outside the bonus range (S/ 450,000)
+                value:
+                  propertyPrice: 450000
+                  downPayment: 90000
+                  annualEffectiveRate: 0.085
+                  termInMonths: 240
+                  applyGoodPayerBonus: true
+                  startDate: "2026-10-01"
+      responses:
+        "200":
+          description: Simulation calculated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulationResponse"
+              examples:
+                withBonus:
+                  summary: Bonus applied (schedule shortened to 3 of 240 rows)
+                  value:
+                    simulationId: 3f9b8c2e-6a1d-4c58-9e0f-7d2b5a1c4e90
+                    financedAmount: 219800
+                    monthlyInstallment: 1863.99
+                    totalPaid: 447357.6
+                    totalInterest: 227557.97
+                    additionalCosts: 0
+                    tcea: 0.085
+                    irr: 0.085
+                    npv: -20791.75
+                    benefit:
+                      name: Good Payer Bonus
+                      eligible: true
+                      appliedAmount: 18200
+                    assumptions:
+                      monthlyPropertyInsurance: 0
+                      monthlyCreditLifeInsurance: 0
+                      administrativeExpenses: 0
+                      annualDiscountRate: 0.1
+                    amortizationSchedule:
+                      - period: 1
+                        paymentDate: "2026-11-01"
+                        openingBalance: 219800
+                        installment: 1863.99
+                        interest: 1499.36
+                        amortization: 364.63
+                        remainingBalance: 219435.37
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 1863.99
+                        isGracePeriod: false
+                      - period: 2
+                        paymentDate: "2026-12-01"
+                        openingBalance: 219435.37
+                        installment: 1863.99
+                        interest: 1496.88
+                        amortization: 367.11
+                        remainingBalance: 219068.26
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 1863.99
+                        isGracePeriod: false
+                      - period: 240
+                        paymentDate: "2046-10-01"
+                        openingBalance: 1851.36
+                        installment: 1863.99
+                        interest: 12.63
+                        amortization: 1851.36
+                        remainingBalance: 0
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 1863.99
+                        isGracePeriod: false
+                outOfRange:
+                  summary: Bonus requested but the property does not qualify (schedule shortened to 3 of 240 rows)
+                  value:
+                    simulationId: 8d2e41a7-5c9b-4f03-b6a8-1e7c3f9d2a64
+                    financedAmount: 360000
+                    monthlyInstallment: 3052.94
+                    totalPaid: 732705.6
+                    totalInterest: 372706.38
+                    additionalCosts: 0
+                    tcea: 0.085
+                    irr: 0.085
+                    npv: -34053.91
+                    benefit:
+                      name: Good Payer Bonus
+                      eligible: false
+                      appliedAmount: 0
+                    assumptions:
+                      monthlyPropertyInsurance: 0
+                      monthlyCreditLifeInsurance: 0
+                      administrativeExpenses: 0
+                      annualDiscountRate: 0.1
+                    amortizationSchedule:
+                      - period: 1
+                        paymentDate: "2026-11-01"
+                        openingBalance: 360000
+                        installment: 3052.94
+                        interest: 2455.74
+                        amortization: 597.21
+                        remainingBalance: 359402.79
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 3052.94
+                        isGracePeriod: false
+                      - period: 2
+                        paymentDate: "2026-12-01"
+                        openingBalance: 359402.79
+                        installment: 3052.94
+                        interest: 2451.66
+                        amortization: 601.28
+                        remainingBalance: 358801.51
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 3052.94
+                        isGracePeriod: false
+                      - period: 240
+                        paymentDate: "2046-10-01"
+                        openingBalance: 3032.26
+                        installment: 3052.94
+                        interest: 20.68
+                        amortization: 3032.26
+                        remainingBalance: 0
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 3052.94
+                        isGracePeriod: false
+        "400":
+          description: |
+            Invalid request (TS06 scenarios 2 and 3). `errors` lists every failing field.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ValidationProblemDetails"
+              examples:
+                downPaymentTooLow:
+                  summary: Down payment below 10%
+                  value:
+                    title: One or more validation errors occurred.
+                    status: 400
+                    errors:
+                      downPayment:
+                        - The down payment must be at least 10% of the property price.
+                missingFields:
+                  summary: Required fields missing
+                  value:
+                    title: One or more validation errors occurred.
+                    status: 400
+                    errors:
+                      propertyPrice:
+                        - The propertyPrice field is required.
+                      termInMonths:
+                        - The termInMonths field is required.
+                rateAsPercentage:
+                  summary: Rate sent as a percentage instead of a fraction
+                  value:
+                    title: One or more validation errors occurred.
+                    status: 400
+                    errors:
+                      annualEffectiveRate:
+                        - The annualEffectiveRate must be a fraction greater than 0 and at most 1 (0.085 means 8.5%).
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    ValidationError:
+      description: Invalid request. `errors` lists every failing field.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ValidationProblemDetails"
+          example:
+            title: One or more validation errors occurred.
+            status: 400
+            errors:
+              email:
+                - The email field is not a valid e-mail address.
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: Healthy
+    RegisterRequest:
+      type: object
+      required: [fullName, email, phone, password, acceptedTerms, acceptedDataProcessing]
+      properties:
+        fullName:
+          type: string
+          minLength: 1
+          maxLength: 150
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 20
+          description: Mobile phone number.
+        password:
+          type: string
+          format: password
+          minLength: 8
+        acceptedTerms:
+          type: boolean
+          description: Must be true. Terms and Conditions.
+        acceptedDataProcessing:
+          type: boolean
+          description: Must be true. Authorization for the processing of personal data (Law 29733).
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+    UserResponse:
+      type: object
+      required: [id, fullName, email, role]
+      properties:
+        id:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [buyer, advisor]
+    LoginResponse:
+      type: object
+      required: [accessToken, tokenType, expiresIn, user]
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          enum: [Bearer]
+        expiresIn:
+          type: integer
+          description: Token lifetime in seconds.
+        user:
+          $ref: "#/components/schemas/UserResponse"
+    SimulationRequest:
+      type: object
+      description: |
+        Cross-field rules: `downPayment` is at least 10% of `propertyPrice` and at most `propertyPrice`;
+        `gracePeriodMonths` is lower than `termInMonths`; `graceType` is `none` if and only if `gracePeriodMonths` is 0;
+        the down payment plus the applied bonus must leave an amount to finance.
+      required: [propertyPrice, downPayment, annualEffectiveRate, termInMonths]
+      properties:
+        propertyPrice:
+          type: number
+          format: double
+          minimum: 0
+          exclusiveMinimum: true
+          description: Property price in PEN.
+          example: 280000
+        downPayment:
+          type: number
+          format: double
+          minimum: 0
+          description: Down payment in PEN.
+          example: 42000
+        annualEffectiveRate:
+          type: number
+          format: double
+          minimum: 0
+          exclusiveMinimum: true
+          maximum: 1
+          description: Effective annual rate (TEA) as a fraction. 0.085 means 8.5%.
+          example: 0.085
+        termInMonths:
+          type: integer
+          minimum: 60
+          maximum: 360
+          description: Loan term in months.
+          example: 240
+        gracePeriodMonths:
+          type: integer
+          minimum: 0
+          default: 0
+          description: Months of grace at the start of the loan (US03, not exposed by the apps in this delivery).
+        graceType:
+          type: string
+          enum: [none, total, partial]
+          default: none
+          description: |
+            `total` capitalizes the interest of each grace month, `partial` pays only the interest.
+        applyGoodPayerBonus:
+          type: boolean
+          default: false
+        startDate:
+          type: string
+          format: date
+          description: Loan start date. Defaults to today in America/Lima. The first payment is one month later.
+    BenefitResult:
+      type: object
+      required: [name, eligible, appliedAmount]
+      properties:
+        name:
+          type: string
+          example: Good Payer Bonus
+        eligible:
+          type: boolean
+          description: The property price is inside a bonus range, even when the bonus was not requested.
+        appliedAmount:
+          type: number
+          format: double
+          description: Amount subtracted from the financed amount. 0 when not requested or not eligible.
+    SimulationAssumptions:
+      type: object
+      description: Server-side values used in the calculation, so the apps can show them (open question 3).
+      required: [monthlyPropertyInsurance, monthlyCreditLifeInsurance, administrativeExpenses, annualDiscountRate]
+      properties:
+        monthlyPropertyInsurance:
+          type: number
+          format: double
+        monthlyCreditLifeInsurance:
+          type: number
+          format: double
+        administrativeExpenses:
+          type: number
+          format: double
+        annualDiscountRate:
+          type: number
+          format: double
+          description: Annual rate used to discount the NPV.
+    AmortizationEntry:
+      type: object
+      required:
+        - period
+        - paymentDate
+        - openingBalance
+        - installment
+        - interest
+        - amortization
+        - remainingBalance
+        - propertyInsurance
+        - creditLifeInsurance
+        - totalPayment
+        - isGracePeriod
+      properties:
+        period:
+          type: integer
+          description: Installment number, starting at 1 (grace months included).
+        paymentDate:
+          type: string
+          format: date
+        openingBalance:
+          type: number
+          format: double
+          description: Balance at the start of the period (US02). The first row opens with financedAmount; every other row opens with the remainingBalance of the previous one.
+        installment:
+          type: number
+          format: double
+          description: Capital plus interest paid in the period, without insurance. 0 in a total grace month.
+        interest:
+          type: number
+          format: double
+        amortization:
+          type: number
+          format: double
+        remainingBalance:
+          type: number
+          format: double
+        propertyInsurance:
+          type: number
+          format: double
+        creditLifeInsurance:
+          type: number
+          format: double
+        totalPayment:
+          type: number
+          format: double
+          description: Installment plus insurance.
+        isGracePeriod:
+          type: boolean
+    SimulationResponse:
+      type: object
+      required:
+        - simulationId
+        - financedAmount
+        - monthlyInstallment
+        - totalPaid
+        - totalInterest
+        - additionalCosts
+        - tcea
+        - irr
+        - npv
+        - benefit
+        - assumptions
+        - amortizationSchedule
+      properties:
+        simulationId:
+          type: string
+          format: uuid
+        financedAmount:
+          type: number
+          format: double
+          description: propertyPrice - downPayment - benefit.appliedAmount.
+        monthlyInstallment:
+          type: number
+          format: double
+          description: Regular monthly installment (capital plus interest), without insurance.
+        totalPaid:
+          type: number
+          format: double
+          description: Sum of the totalPayment of every schedule row.
+        totalInterest:
+          type: number
+          format: double
+        additionalCosts:
+          type: number
+          format: double
+          description: Insurance paid during the whole term plus administrative expenses.
+        tcea:
+          type: number
+          format: double
+          description: |
+            Annual effective cost rate: the annualized IRR of the real cash flow, insurance included
+            (SBS Resolution 8181-2012). Fraction with 6 decimals.
+        irr:
+          type: number
+          format: double
+          description: Annual IRR of the same cash flow. Equal to tcea in this version.
+        npv:
+          type: number
+          format: double
+          description: Net present value from the lender's side, discounted at assumptions.annualDiscountRate.
+        benefit:
+          $ref: "#/components/schemas/BenefitResult"
+        assumptions:
+          $ref: "#/components/schemas/SimulationAssumptions"
+        amortizationSchedule:
+          type: array
+          items:
+            $ref: "#/components/schemas/AmortizationEntry"
+    ProblemDetails:
+      type: object
+      required: [title, status]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        traceId:
+          type: string
+    ValidationProblemDetails:
+      allOf:
+        - $ref: "#/components/schemas/ProblemDetails"
+        - type: object
+          required: [errors]
+          properties:
+            errors:
+              type: object
+              description: Messages by camelCase request property.
+              additionalProperties:
+                type: array
+                items:
+                  type: string
