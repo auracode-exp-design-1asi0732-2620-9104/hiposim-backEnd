@@ -1,0 +1,251 @@
+﻿{
+  "info": {
+    "name": "HipoSim API v0.1.0",
+    "description": "Coleccion de la seccion 5.2.6 (RESTful API Documentation). Simulations esta implementado (TS06). Auth, Agencies y Leads son carpetas vacias que se llenan cuando existan los endpoints. Contrato: docs/api-contract/openapi.v0.yaml.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000" },
+    { "key": "accessToken", "value": "" },
+    { "key": "simulationId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Pendiente: POST /api/auth/register (US13, TS07) y POST /api/auth/login (US22, US26, TS07).",
+      "item": []
+    },
+    {
+      "name": "Simulations",
+      "description": "TS06, US01, US02, US04, US05. El simulador es publico: el token del Comprador es opcional.",
+      "item": [
+        {
+          "name": "TS06 E1 / US01 E1 / US05 E1 - Simulacion calculada con bono (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 y application/json', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+                  "});",
+                  "const b = pm.response.json();",
+                  "pm.test('cuota, TCEA, VAN, TIR y cronograma (TS06 E1)', function () {",
+                  "  pm.expect(b.financedAmount).to.eql(219800);",
+                  "  pm.expect(b.monthlyInstallment).to.eql(1863.99);",
+                  "  pm.expect(b.tcea).to.be.closeTo(0.085, 0.000001);",
+                  "  pm.expect(b).to.have.property('npv');",
+                  "  pm.expect(b).to.have.property('irr');",
+                  "});",
+                  "pm.test('bono descontado del monto a financiar (US05 E1)', function () {",
+                  "  pm.expect(b.benefit.eligible).to.eql(true);",
+                  "  pm.expect(b.benefit.appliedAmount).to.eql(18200);",
+                  "});",
+                  "pm.test('cronograma con saldo inicial, amortizacion, interes y saldo final (US02 E1)', function () {",
+                  "  pm.expect(b.amortizationSchedule.length).to.eql(240);",
+                  "  pm.expect(b.amortizationSchedule[0].openingBalance).to.eql(219800);",
+                  "  pm.expect(b.amortizationSchedule[239].remainingBalance).to.eql(0);",
+                  "});",
+                  "pm.collectionVariables.set('simulationId', b.simulationId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"propertyPrice\": 280000,\n  \"downPayment\": 42000,\n  \"annualEffectiveRate\": 0.085,\n  \"termInMonths\": 240,\n  \"gracePeriodMonths\": 0,\n  \"graceType\": \"none\",\n  \"applyGoodPayerBonus\": true,\n  \"startDate\": \"2026-10-01\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/simulations", "host": ["{{baseUrl}}"], "path": ["api", "simulations"] }
+          }
+        },
+        {
+          "name": "US05 E2 - Vivienda fuera de rango (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('la vivienda no califica y el monto no cambia (US05 E2)', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.benefit.eligible).to.eql(false);",
+                  "  pm.expect(b.benefit.appliedAmount).to.eql(0);",
+                  "  pm.expect(b.financedAmount).to.eql(360000);",
+                  "  pm.expect(b.monthlyInstallment).to.eql(3052.94);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"propertyPrice\": 450000,\n  \"downPayment\": 90000,\n  \"annualEffectiveRate\": 0.085,\n  \"termInMonths\": 240,\n  \"applyGoodPayerBonus\": true,\n  \"startDate\": \"2026-10-01\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/simulations", "host": ["{{baseUrl}}"], "path": ["api", "simulations"] }
+          }
+        },
+        {
+          "name": "US01 E3 - Simulacion sin iniciar sesion (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde sin token y sin pedir datos personales (US01 E3)', function () {",
+                  "  pm.expect(pm.request.headers.has('Authorization')).to.eql(false);",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"propertyPrice\": 280000,\n  \"downPayment\": 42000,\n  \"annualEffectiveRate\": 0.085,\n  \"termInMonths\": 240\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/simulations", "host": ["{{baseUrl}}"], "path": ["api", "simulations"] }
+          }
+        },
+        {
+          "name": "Token opcional - Simulacion con sesion iniciada (200)",
+          "description": "Requiere accessToken (carpeta Auth, cuando exista el login). Con token valido la simulacion se asocia al Comprador.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 con Authorization opcional', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"propertyPrice\": 280000,\n  \"downPayment\": 42000,\n  \"annualEffectiveRate\": 0.085,\n  \"termInMonths\": 240\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/simulations", "host": ["{{baseUrl}}"], "path": ["api", "simulations"] }
+          }
+        },
+        {
+          "name": "TS06 E2 / US01 E2 - Cuota inicial insuficiente (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 problem+json con mensaje de validacion (TS06 E2)', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  const p = pm.response.json();",
+                  "  pm.expect(p.status).to.eql(400);",
+                  "  pm.expect(p.errors.downPayment[0]).to.eql('The down payment must be at least 10% of the property price.');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"propertyPrice\": 280000,\n  \"downPayment\": 27999,\n  \"annualEffectiveRate\": 0.085,\n  \"termInMonths\": 240\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/simulations", "host": ["{{baseUrl}}"], "path": ["api", "simulations"] }
+          }
+        },
+        {
+          "name": "TS06 E3 - Datos incompletos (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 con la lista de campos con error (TS06 E3)', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "  const keys = Object.keys(pm.response.json().errors).sort();",
+                  "  pm.expect(keys).to.eql(['annualEffectiveRate', 'downPayment', 'propertyPrice', 'termInMonths']);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/api/simulations", "host": ["{{baseUrl}}"], "path": ["api", "simulations"] }
+          }
+        },
+        {
+          "name": "Validacion - Tasa enviada como porcentaje (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400: la tasa debe ser una fraccion (0.085 = 8.5%)', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().errors).to.have.property('annualEffectiveRate');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"propertyPrice\": 280000,\n  \"downPayment\": 42000,\n  \"annualEffectiveRate\": 8.5,\n  \"termInMonths\": 240\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/simulations", "host": ["{{baseUrl}}"], "path": ["api", "simulations"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Agencies",
+      "description": "Pendiente: listado de inmobiliarias para US21 (GET /api/agencies, aun no incluido en la tabla 5.2.6).",
+      "item": []
+    },
+    {
+      "name": "Leads",
+      "description": "Pendiente: TS08, US21, US23, US24, US25 (POST /api/leads, GET /api/leads, GET /api/leads/{id}, PATCH /api/leads/{id}/status, POST /api/leads/{id}/notes).",
+      "item": []
+    }
+  ]
+}
