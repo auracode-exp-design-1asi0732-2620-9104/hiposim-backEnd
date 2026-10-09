@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: hiposim_dev
+      POSTGRES_USER: hiposim
+      POSTGRES_PASSWORD: hiposim_dev_only
+    ports:
+      - "127.0.0.1:${HIPOSIM_POSTGRES_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hiposim -d hiposim_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    volumes:
+      - hiposim_pgdata:/var/lib/postgresql/data
+volumes:
+  hiposim_pgdata:
