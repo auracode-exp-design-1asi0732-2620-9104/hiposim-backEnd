@@ -38,6 +38,12 @@ public sealed class SimulationsController(ISimulationService service) : Controll
 
     private Guid? GetBuyerId()
     {
+        // Preserve the original optional-auth behavior, but do not persist advisors as buyers.
+        // Legacy test principals may contain NameIdentifier without a role.
+        var role = User.FindFirstValue(ClaimTypes.Role);
+        if (role is not null && role != "buyer")
+            return null;
+
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
         return Guid.TryParse(claim, out var buyerId) ? buyerId : null;
     }
