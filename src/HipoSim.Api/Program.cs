@@ -112,6 +112,8 @@ if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("Swa
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    // The API has no home page: send whoever opens the base URL to the documentation.
+    app.MapGet("/", () => Results.Redirect("/swagger")).AllowAnonymous().ExcludeFromDescription();
 }
 
 app.UseResponseCompression();
