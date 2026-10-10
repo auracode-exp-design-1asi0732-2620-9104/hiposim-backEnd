@@ -62,6 +62,27 @@ public sealed class ApiHttpTests
     }
 
     [Fact]
+    public async Task Root_redirects_to_swagger_when_swagger_is_enabled()
+    {
+        using var factory = new TestApiFactory();
+        using var client = factory
+            .WithWebHostBuilder(builder => builder.UseSetting("Swagger:Enabled", "true"))
+            .CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var response = await client.GetAsync("/");
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/swagger", response.Headers.Location?.OriginalString);
+    }
+
+    [Fact]
+    public async Task Root_is_not_found_when_swagger_is_disabled()
+    {
+        using var factory = new TestApiFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var response = await client.GetAsync("/");
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Register_login_and_persist_simulation_end_to_end()
     {
         using var factory = new TestApiFactory();
