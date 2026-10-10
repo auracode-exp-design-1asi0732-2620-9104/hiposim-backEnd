@@ -10,7 +10,24 @@ namespace HipoSim.Simulations;
 [Route("api/simulations")]
 public sealed class SimulationsController(ISimulationService service) : ControllerBase
 {
-    /// <summary>Calculates a mortgage simulation (TS06). Authentication is optional.</summary>
+    /// <summary>Calculate a mortgage simulation (TS06, US01, US02, US04, US05)</summary>
+    /// <remarks>
+    /// Converts the rate, applies the Good Payer Bonus when requested and the property is in range, builds the
+    /// French amortization schedule and calculates TCEA, NPV and IRR.
+    ///
+    /// **Good Payer Bonus (US05).** With `applyGoodPayerBonus: true`, if the price is inside a bonus range the amount
+    /// is subtracted from the financed amount (`benefit.eligible = true`). If the price is outside every range the
+    /// response is still 200, `benefit.eligible = false`, `benefit.appliedAmount = 0` and the financed amount does
+    /// not change. With `applyGoodPayerBonus: false` the bonus is never applied.
+    ///
+    /// `financedAmount = propertyPrice - downPayment - benefit.appliedAmount`.
+    ///
+    /// Authentication is optional: with a valid `Authorization` header the simulation is associated with the buyer.
+    /// </remarks>
+    /// <param name="request">Simulation data. Rates are fractions: `0.085` means 8.5%.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <response code="200">Simulation calculated: installment, TCEA, NPV, IRR, benefit and amortization schedule.</response>
+    /// <response code="400">Invalid request (TS06 scenarios 2 and 3). `errors` lists every failing field by its camelCase name.</response>
     [HttpPost]
     [ProducesResponseType<SimulationResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]

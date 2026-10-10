@@ -1,8 +1,10 @@
+using System.Reflection;
 using System.Security.Claims;
 using System.Text;
 using HipoSim.Api.Auth;
 using HipoSim.Api.Data;
 using HipoSim.Api.Options;
+using HipoSim.Api.Swagger;
 using HipoSim.Simulations;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -14,7 +16,7 @@ using HipoSim.Api.Leads;
 var builder = WebApplication.CreateBuilder(args);
 
 var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
-jwt.Validate(); // Fail fast rather than accidentally starting with a weak/empty signing key.
+jwt.Validate();
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 
 var connectionString = builder.Configuration.GetConnectionString("HipoSimDb");
@@ -62,7 +64,22 @@ builder.Services.AddResponseCompression(options => options.EnableForHttps = true
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new OpenApiInfo { Title = "HipoSim API", Version = "v0.1.0" });
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "HipoSim API",
+        Version = "v0.1.0",
+        Description = """
+            REST API of HipoSim, the mortgage simulator shared by the Android app, the advisor web app and the Landing Page.
+
+            **Conventions**
+            - JSON with camelCase property names.
+            - Rates are fractions: `0.085` means 8.5%.
+            - Amounts are in PEN with 2 decimals; dates use ISO 8601 (`2026-10-01`).
+            - Errors use `application/problem+json`; validation errors list each failing field under `errors`.
+            - Protected endpoints expect `Authorization: Bearer <accessToken>`, obtained from `/api/auth/login` or `/api/auth/register`.
+            """
+    });
+
     options.AddSecurityDefinition("bearerAuth", new OpenApiSecurityScheme
     {
         Type = SecuritySchemeType.Http,
@@ -70,6 +87,20 @@ builder.Services.AddSwaggerGen(options =>
         BearerFormat = "JWT",
         Description = "Enter the JWT returned by /api/auth/login or /api/auth/register."
     });
+
+    foreach (var xmlFile in new[]
+             {
+                 $"{Assembly.GetExecutingAssembly().GetName().Name}.xml",
+                 "HipoSim.Simulations.xml"
+             })
+    {
+        var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+        if (File.Exists(xmlPath))
+            options.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
+    }
+
+    options.SchemaFilter<ExamplesSchemaFilter>();
+    options.OperationFilter<ApiDocumentationOperationFilter>();
 });
 
 var app = builder.Build();
@@ -85,7 +116,13 @@ app.UseCors("hiposim-clients");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-app.MapGet("/health", () => Results.Ok(new { status = "Healthy" })).AllowAnonymous().WithTags("Health");
+app.MapGet("/health", () => Results.Ok(new HealthResponse("Healthy")))
+    .AllowAnonymous()
+    .WithName("getHealth")
+    .WithTags("Health")
+    .WithSummary("Check that the API is available")
+    .WithDescription("Returns 200 with `{ \"status\": \"Healthy\" }` when the API is up. It requires no token.")
+    .Produces<HealthResponse>(StatusCodes.Status200OK);
 
 // Development only: automated schema preparation + idempotent demo seed.
 // Production migrations must be applied explicitly by the deployment pipeline/operator.
@@ -99,5 +136,7 @@ if (app.Environment.IsDevelopment() && builder.Configuration.GetValue("Database:
 }
 
 await app.RunAsync();
+
+public sealed record HealthResponse(string Status);
 
 public partial class Program { }
