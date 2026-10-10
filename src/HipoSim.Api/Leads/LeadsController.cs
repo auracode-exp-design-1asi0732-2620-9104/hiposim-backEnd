@@ -161,5 +161,53 @@ public sealed class LeadsController(LeadService service) : ControllerBase
             _ => StatusCode(StatusCodes.Status500InternalServerError)
         };
     }
+    
+    [HttpPost("{id:guid}/notes")]
+    [Authorize(Roles = "advisor")]
+    [ProducesResponseType<LeadNoteResponse>(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreateNote(
+        Guid id,
+        [FromBody] CreateLeadNoteRequest? request,
+        CancellationToken cancellationToken)
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var agencyClaim = User.FindFirstValue("agencyId");
+
+        if (!Guid.TryParse(userIdClaim, out var advisorId) ||
+            !Guid.TryParse(agencyClaim, out var agencyId) ||
+            advisorId == Guid.Empty ||
+            agencyId == Guid.Empty)
+        {
+            return Forbid();
+        }
+
+        var result = await service.CreateNoteAsync(
+            id,
+            agencyId,
+            advisorId,
+            request,
+            cancellationToken);
+
+        return result.Status switch
+        {
+            CreateLeadNoteStatus.Created =>
+                StatusCode(StatusCodes.Status201Created, result.Value),
+
+            CreateLeadNoteStatus.Invalid =>
+                BadRequest(new ProblemDetails
+                {
+                    Status = StatusCodes.Status400BadRequest,
+                    Title = "Note content must contain between 1 and 2000 characters."
+                }),
+
+            CreateLeadNoteStatus.NotFound => NotFound(),
+
+            _ => StatusCode(StatusCodes.Status500InternalServerError)
+        };
+    }
 
 }

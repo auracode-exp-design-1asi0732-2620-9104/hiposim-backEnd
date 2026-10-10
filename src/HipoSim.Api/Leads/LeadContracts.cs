@@ -78,3 +78,17 @@ public enum UpdateLeadStatusResult
     Invalid,
     NotFound
 }
+
+public sealed record CreateLeadNoteRequest(
+    string? Content);
+
+public enum CreateLeadNoteStatus
+{
+    Created,
+    Invalid,
+    NotFound
+}
+
+public sealed record CreateLeadNoteResult(
+    CreateLeadNoteStatus Status,
+    LeadNoteResponse? Value = null);

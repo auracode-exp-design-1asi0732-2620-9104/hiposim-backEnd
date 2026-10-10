@@ -256,7 +256,49 @@ public sealed class LeadService(
 
         return UpdateLeadStatusResult.Updated;
     }
+    
+    public async Task<CreateLeadNoteResult> CreateNoteAsync(
+        Guid leadId,
+        Guid agencyId,
+        Guid advisorId,
+        CreateLeadNoteRequest? request,
+        CancellationToken cancellationToken = default)
+    {
+        var content = request?.Content?.Trim();
 
+        if (string.IsNullOrWhiteSpace(content) || content.Length > 2000)
+            return new CreateLeadNoteResult(CreateLeadNoteStatus.Invalid);
+
+        var leadExists = await database.Leads
+            .AnyAsync(
+                l => l.Id == leadId && l.AgencyId == agencyId,
+                cancellationToken);
+
+        if (!leadExists)
+            return new CreateLeadNoteResult(CreateLeadNoteStatus.NotFound);
+
+        var note = new LeadNote
+        {
+            Id = Guid.NewGuid(),
+            LeadId = leadId,
+            AuthorId = advisorId,
+            Content = content,
+            CreatedAt = clock.GetUtcNow()
+        };
+
+        database.LeadNotes.Add(note);
+        await database.SaveChangesAsync(cancellationToken);
+
+        return new CreateLeadNoteResult(
+            CreateLeadNoteStatus.Created,
+            new LeadNoteResponse(
+                note.Id,
+                note.AuthorId,
+                note.Content,
+                note.CreatedAt));
+    }
+
+    
     private static double? GetNumber(JsonElement root, string propertyName)
     {
         if (root.ValueKind == JsonValueKind.Object &&
