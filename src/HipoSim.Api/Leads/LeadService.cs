@@ -85,6 +85,7 @@ public sealed class LeadService(
                 BuyerName = buyer.FullName,
                 BuyerEmail = buyer.Email,
                 lead.SimulationId,
+                simulation.InputJson,
                 simulation.ResponseJson,
                 lead.Status,
                 lead.CreatedAt
@@ -99,6 +100,7 @@ public sealed class LeadService(
 
         return records.Select(record =>
         {
+            using var input = JsonDocument.Parse(record.InputJson);
             using var document = JsonDocument.Parse(record.ResponseJson);
             var root = document.RootElement;
 
@@ -108,6 +110,7 @@ public sealed class LeadService(
                 record.BuyerName,
                 record.BuyerEmail,
                 record.SimulationId,
+                GetNumber(input.RootElement, "propertyPrice"),
                 GetNumber(root, "monthlyInstallment"),
                 GetNumber(root, "tcea"),
                 record.Status,
@@ -143,6 +146,9 @@ public sealed class LeadService(
 
         double? propertyPrice;
         double? downPayment;
+        double? goodPayerBonus = null;
+        double? financedAmount;
+        int? termInMonths;
         double? monthlyInstallment;
         double? tcea;
 
@@ -150,6 +156,8 @@ public sealed class LeadService(
         {
             propertyPrice = GetNumber(input.RootElement, "propertyPrice");
             downPayment = GetNumber(input.RootElement, "downPayment");
+            var term = GetNumber(input.RootElement, "termInMonths");
+            termInMonths = term is null ? null : (int)Math.Round(term.Value);
         }
 
         using (var output = JsonDocument.Parse(record.ResponseJson))
@@ -158,6 +166,12 @@ public sealed class LeadService(
                 output.RootElement, "monthlyInstallment");
 
             tcea = GetNumber(output.RootElement, "tcea");
+            financedAmount = GetNumber(output.RootElement, "financedAmount");
+            if (output.RootElement.ValueKind == JsonValueKind.Object &&
+                output.RootElement.TryGetProperty("benefit", out var benefit))
+            {
+                goodPayerBonus = GetNumber(benefit, "appliedAmount");
+            }
         }
 
         var notes = await database.LeadNotes
@@ -195,6 +209,9 @@ public sealed class LeadService(
             leadRecord.SimulationId,
             propertyPrice,
             downPayment,
+            goodPayerBonus,
+            financedAmount,
+            termInMonths,
             monthlyInstallment,
             tcea,
             leadRecord.Status,
