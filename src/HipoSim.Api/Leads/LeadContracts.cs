@@ -25,3 +25,14 @@ public enum CreateLeadStatus
 public sealed record CreateLeadResult(
     CreateLeadStatus Status,
     LeadResponse? Value = null);
+    
+public sealed record LeadInboxResponse(
+    Guid Id,
+    Guid BuyerId,
+    string BuyerName,
+    string BuyerEmail,
+    Guid SimulationId,
+    double? MonthlyInstallment,
+    double? Tcea,
+    string Status,
+    DateTimeOffset CreatedAt);

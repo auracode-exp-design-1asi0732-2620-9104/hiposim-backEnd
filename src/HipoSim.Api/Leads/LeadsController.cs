@@ -7,11 +7,12 @@ using Microsoft.AspNetCore.Mvc;
 namespace HipoSim.Api.Leads;
 
 [ApiController]
-[Authorize(Roles = "buyer")]
+[Authorize]
 [Route("api/leads")]
 public sealed class LeadsController(LeadService service) : ControllerBase
 {
     [HttpPost]
+    [Authorize(Roles = "buyer")]
     [ProducesResponseType<LeadResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
@@ -60,4 +61,31 @@ public sealed class LeadsController(LeadService service) : ControllerBase
             _ => StatusCode(StatusCodes.Status500InternalServerError)
         };
     }
+    
+    [HttpGet]
+    [Authorize(Roles = "advisor")]
+    [ProducesResponseType<IReadOnlyList<LeadInboxResponse>>(
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetInbox(
+        [FromQuery] string? status,
+        CancellationToken cancellationToken)
+    {
+        var agencyClaim = User.FindFirstValue("agencyId");
+
+        if (!Guid.TryParse(agencyClaim, out var agencyId) ||
+            agencyId == Guid.Empty)
+        {
+            return Forbid();
+        }
+
+        var leads = await service.GetInboxAsync(
+            agencyId,
+            status,
+            cancellationToken);
+
+        return Ok(leads);
+    }
+
 }
