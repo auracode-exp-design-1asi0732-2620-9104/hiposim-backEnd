@@ -20,6 +20,15 @@ public sealed class ApiHttpTests
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Testing"); // Prevent automatic PostgreSQL migration and seed.
+            builder.UseSetting("Jwt:Issuer", "HipoSimTests");
+            builder.UseSetting("Jwt:Audience", "HipoSimTestClients");
+            builder.UseSetting(
+                "Jwt:SigningKey",
+                "Only_for_testserver_this_signing_key_is_long_enough_2026");
+            builder.UseSetting("Jwt:ExpiresInSeconds", "3600");
+            builder.UseSetting(
+                "ConnectionStrings:HipoSimDb",
+                "Host=localhost;Database=unused_test_only;Username=unused;Password=unused");
             builder.ConfigureAppConfiguration((_, configuration) =>
                 configuration.AddInMemoryCollection(new Dictionary<string, string?>
                 {

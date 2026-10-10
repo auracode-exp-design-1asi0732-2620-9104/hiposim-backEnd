@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using HipoSim.Api.Leads;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,6 +23,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddDbContext<HipoSimDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<LeadService>();
 builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ISimulationRepository, EfSimulationRepository>();
