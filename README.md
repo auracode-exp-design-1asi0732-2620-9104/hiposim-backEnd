@@ -19,7 +19,7 @@ El motor de Franco López es un port a C# de **AutoFinance Pro** (Python), valid
 | `tests/HipoSim.FinancialEngine.Tests` | 106 pruebas del motor, incluida la paridad contra Python (48 escenarios en `GoldenData/python-parity-cases.json`). |
 | `tests/HipoSim.Simulations.Tests` | 60 pruebas del endpoint: validador, servicio, HTTP real con TestServer y conformidad con el contrato OpenAPI. |
 | `samples/HipoSim.EnginePrototype` | Consola que ejecuta el ejemplo del contrato (S/ 280,000, TEA 8.5 %, 20 años, bono solicitado). |
-| `docs/api-contract/openapi.v0.yaml` | Contrato OpenAPI 3.0.3 v0.1.0 (health, registro, login y simulación). |
+| `docs/api-contract/openapi.v0.yaml` | Contrato OpenAPI 3.0.3 v0.1.0 (health, registro, login, simulación y listado de inmobiliarias). |
 | `docs/engine-validation.md` | Documento de validación del motor y Testing Suite Evidence. |
 | `docs/Informe-avance-y-contrato-API-v0.docx` | Informe de avance y contrato v0 para revisión de Carlos. |
 | `tools/generate_parity_cases.py` | Regenera los datos de paridad ejecutando el motor original de Python. |
