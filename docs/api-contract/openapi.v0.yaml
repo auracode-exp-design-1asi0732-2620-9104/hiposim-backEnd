@@ -5,7 +5,8 @@ info:
   description: |
     Contract v0 (DRAFT) shared by the Android app, the advisor web app and the API.
     Scope: health, authentication and the simulation endpoint (TS06, TS07, US01, US02, US04, US05, US13, US22, US26).
-    Leads and agencies (TS08, US21, GET /api/agencies) are not in this version.
+    It also lists the agencies a buyer can send a simulation to (`GET /api/agencies`, US21).
+    Leads (TS08, `/api/leads`) are not in this version.
 
     **Conventions**
     - JSON, camelCase property names, English identifiers.
@@ -48,6 +49,8 @@ tags:
     description: Registration and login with JWT.
   - name: Simulations
     description: Mortgage simulation shared by the Landing Page, the web app and the mobile app.
+  - name: Agencies
+    description: Real estate agencies that receive leads.
 paths:
   /health:
     get:
@@ -360,6 +363,27 @@ paths:
                     errors:
                       annualEffectiveRate:
                         - The annualEffectiveRate must be a fraction greater than 0 and at most 1 (0.085 means 8.5%).
+  /api/agencies:
+    get:
+      tags: [Agencies]
+      operationId: getAgencies
+      summary: List the agencies a buyer can send a simulation to
+      description: |
+        Public catalogue used by the mobile app before `POST /api/leads` (US21). It returns only the identifier and
+        the name of each agency, sorted by name. The list is empty when no agency is registered.
+      security: []
+      responses:
+        "200":
+          description: The agencies, sorted by name.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AgencyResponse"
+              example:
+                - id: a3e32c74-3e12-43e2-b609-3189294ff3e5
+                  name: HipoSim Demo Agency
 components:
   securitySchemes:
     bearerAuth:
@@ -387,6 +411,18 @@ components:
         status:
           type: string
           example: Healthy
+    AgencyResponse:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Send it as `agencyId` in `POST /api/leads`.
+        name:
+          type: string
+          maxLength: 160
+          example: HipoSim Demo Agency
     RegisterRequest:
       type: object
       required: [fullName, email, phone, password, acceptedTerms, acceptedDataProcessing]
