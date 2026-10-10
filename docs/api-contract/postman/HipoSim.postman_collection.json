@@ -1,19 +1,239 @@
 ﻿{
   "info": {
     "name": "HipoSim API v0.1.0",
-    "description": "Coleccion de la seccion 5.2.6 (RESTful API Documentation). Simulations esta implementado (TS06). Auth, Agencies y Leads son carpetas vacias que se llenan cuando existan los endpoints. Contrato: docs/api-contract/openapi.v0.yaml.",
+    "description": "Coleccion de la seccion 5.2.6 (RESTful API Documentation). Auth (TS07, US13, US26) y Simulations (TS06) estan implementados. Agencies y Leads son carpetas vacias que se llenan cuando existan los endpoints. Contrato: docs/api-contract/openapi.v0.yaml. Ejecutar la carpeta Auth en orden: el registro crea el correo y el token que usan los demas requests.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:5000" },
     { "key": "accessToken", "value": "" },
-    { "key": "simulationId", "value": "" }
+    { "key": "simulationId", "value": "" },
+    { "key": "buyerEmail", "value": "" },
+    { "key": "buyerPassword", "value": "S3gura-2026" }
   ],
   "item": [
     {
       "name": "Auth",
-      "description": "Pendiente: POST /api/auth/register (US13, TS07) y POST /api/auth/login (US22, US26, TS07).",
-      "item": []
+      "description": "TS07, US13, US26. Ejecutar en orden: el primer request crea el correo y guarda el accessToken.",
+      "item": [
+        {
+          "name": "TS07 E1 / US13 E1 - Registro exitoso (201)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('buyerEmail', 'buyer.' + Date.now() + '@example.com');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 con token JWT y usuario comprador (US13 E1, TS07 E1)', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.tokenType).to.eql('Bearer');",
+                  "  pm.expect(b.expiresIn).to.be.above(0);",
+                  "  pm.expect(b.accessToken.split('.').length).to.eql(3);",
+                  "  pm.expect(b.user.role).to.eql('buyer');",
+                  "  pm.expect(b.user.email).to.eql(pm.collectionVariables.get('buyerEmail'));",
+                  "  pm.collectionVariables.set('accessToken', b.accessToken);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Ana Torres\",\n  \"email\": \"{{buyerEmail}}\",\n  \"phone\": \"987654321\",\n  \"password\": \"{{buyerPassword}}\",\n  \"acceptedTerms\": true,\n  \"acceptedDataProcessing\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "TS07 E2 / US13 E2 - Correo ya registrado (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 problem+json: correo ya registrado (US13 E2, TS07 E2)', function () {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  pm.expect(pm.response.json().title).to.eql('Email already registered.');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "description": "Reutiliza el correo creado por el registro exitoso. Ejecutar despues de ese request.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Ana Torres\",\n  \"email\": \"{{buyerEmail}}\",\n  \"phone\": \"987654321\",\n  \"password\": \"{{buyerPassword}}\",\n  \"acceptedTerms\": true,\n  \"acceptedDataProcessing\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "US13 E3 - Terminos no aceptados (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400: la cuenta no se crea sin aceptar los terminos (US13 E3)', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  pm.expect(pm.response.json().errors).to.have.property('acceptedTerms');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Luis Rojas\",\n  \"email\": \"luis.rojas@example.com\",\n  \"phone\": \"987654322\",\n  \"password\": \"S3gura-2026\",\n  \"acceptedTerms\": false,\n  \"acceptedDataProcessing\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "US13 - Datos invalidos en el registro (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 lista cada campo invalido', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "  const keys = Object.keys(pm.response.json().errors).sort();",
+                  "  pm.expect(keys).to.eql(['email', 'password']);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Luis Rojas\",\n  \"email\": \"correo-sin-arroba\",\n  \"phone\": \"987654322\",\n  \"password\": \"corta\",\n  \"acceptedTerms\": true,\n  \"acceptedDataProcessing\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "TS07 E3 / US26 E1 - Inicio de sesion exitoso (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 con token JWT (US26 E1, TS07 E3)', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.tokenType).to.eql('Bearer');",
+                  "  pm.expect(b.accessToken.split('.').length).to.eql(3);",
+                  "  pm.expect(b.user.role).to.eql('buyer');",
+                  "  pm.collectionVariables.set('accessToken', b.accessToken);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{buyerEmail}}\",\n  \"password\": \"{{buyerPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "TS07 E4 / US26 E2 - Credenciales invalidas (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401 sin indicar cual dato es incorrecto (US26 E2, TS07 E4)', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');",
+                  "  pm.expect(pm.response.json().title).to.eql('Invalid credentials.');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{buyerEmail}}\",\n  \"password\": \"Contrasena-incorrecta-1\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Login - Datos incompletos (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 lista email y password', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "  const keys = Object.keys(pm.response.json().errors).sort();",
+                  "  pm.expect(keys).to.eql(['email', 'password']);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        }
+      ]
     },
     {
       "name": "Simulations",
@@ -54,6 +274,7 @@
             }
           ],
           "request": {
+            "auth": { "type": "noauth" },
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
@@ -85,6 +306,7 @@
             }
           ],
           "request": {
+            "auth": { "type": "noauth" },
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
@@ -125,7 +347,7 @@
         },
         {
           "name": "Token opcional - Simulacion con sesion iniciada (200)",
-          "description": "Requiere accessToken (carpeta Auth, cuando exista el login). Con token valido la simulacion se asocia al Comprador.",
+          "description": "Requiere accessToken: ejecutar antes el registro o el login de la carpeta Auth. Con token valido la simulacion se asocia al Comprador.",
           "event": [
             {
               "listen": "test",
@@ -174,6 +396,7 @@
             }
           ],
           "request": {
+            "auth": { "type": "noauth" },
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
@@ -202,6 +425,7 @@
             }
           ],
           "request": {
+            "auth": { "type": "noauth" },
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } },
@@ -225,6 +449,7 @@
             }
           ],
           "request": {
+            "auth": { "type": "noauth" },
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
@@ -239,12 +464,12 @@
     },
     {
       "name": "Agencies",
-      "description": "Pendiente: listado de inmobiliarias para US21 (GET /api/agencies, aun no incluido en la tabla 5.2.6).",
+      "description": "Pendiente: GET /api/agencies para el listado de inmobiliarias de US21.",
       "item": []
     },
     {
       "name": "Leads",
-      "description": "Pendiente: TS08, US21, US23, US24, US25 (POST /api/leads, GET /api/leads, GET /api/leads/{id}, PATCH /api/leads/{id}/status, POST /api/leads/{id}/notes).",
+      "description": "Pendiente (TS08, US21, US23, US24, US25): POST /api/leads, GET /api/leads, GET /api/leads/{id}, PATCH /api/leads/{id}/status y POST /api/leads/{id}/notes.",
       "item": []
     }
   ]
