@@ -10,6 +10,7 @@ public sealed class HipoSimDbContext(DbContextOptions<HipoSimDbContext> options)
     public DbSet<Lead> Leads => Set<Lead>();
     public DbSet<LeadNote> LeadNotes => Set<LeadNote>();
     public DbSet<LeadStatusChange> LeadStatusChanges => Set<LeadStatusChange>();
+    public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -20,6 +21,18 @@ public sealed class HipoSimDbContext(DbContextOptions<HipoSimDbContext> options)
             entity.Property(a => a.Id).HasColumnName("id");
             entity.Property(a => a.Name).HasColumnName("name").HasMaxLength(160).IsRequired();
             entity.Property(a => a.CreatedAt).HasColumnName("created_at").IsRequired();
+        });
+
+        modelBuilder.Entity<ContactMessage>(entity =>
+        {
+            entity.ToTable("contact_messages");
+            entity.HasKey(m => m.Id);
+            entity.Property(m => m.Id).HasColumnName("id");
+            entity.Property(m => m.Name).HasColumnName("name").HasMaxLength(100).IsRequired();
+            entity.Property(m => m.Email).HasColumnName("email").HasMaxLength(150).IsRequired();
+            entity.Property(m => m.Message).HasColumnName("message").HasMaxLength(2000).IsRequired();
+            entity.Property(m => m.CreatedAt).HasColumnName("created_at").IsRequired();
+            entity.HasIndex(m => m.CreatedAt).HasDatabaseName("ix_contact_messages_created_at");
         });
 
         modelBuilder.Entity<AppUser>(entity =>

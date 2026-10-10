@@ -44,3 +44,6 @@ services:
       # Origin of the advisor web app (for example its Vercel URL). Set it in the dashboard; leave it empty until then.
       - key: Cors__AllowedOrigins__0
         sync: false
+      # Origin of the Landing Page on GitHub Pages (origin only, no path): its contact form calls the API.
+      - key: Cors__AllowedOrigins__1
+        value: https://auracode-exp-design-1asi0732-2620-9104.github.io
