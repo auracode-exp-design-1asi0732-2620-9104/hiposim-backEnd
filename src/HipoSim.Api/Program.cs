@@ -19,9 +19,12 @@ var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOption
 jwt.Validate();
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 
+// Hosting platforms such as Render hand out the database as a URL (DATABASE_URL); local runs use the connection string.
 var connectionString = builder.Configuration.GetConnectionString("HipoSimDb");
 if (string.IsNullOrWhiteSpace(connectionString))
-    throw new InvalidOperationException("Configure ConnectionStrings__HipoSimDb before running the API.");
+    connectionString = DatabaseUrl.ToConnectionString(builder.Configuration["DATABASE_URL"]);
+if (string.IsNullOrWhiteSpace(connectionString))
+    throw new InvalidOperationException("Configure ConnectionStrings__HipoSimDb or DATABASE_URL before running the API.");
 builder.Services.AddDbContext<HipoSimDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
 builder.Services.AddScoped<AuthService>();
@@ -124,15 +127,18 @@ app.MapGet("/health", () => Results.Ok(new HealthResponse("Healthy")))
     .WithDescription("Returns 200 with `{ \"status\": \"Healthy\" }` when the API is up. It requires no token.")
     .Produces<HealthResponse>(StatusCodes.Status200OK);
 
-// Development only: automated schema preparation + idempotent demo seed.
-// Production migrations must be applied explicitly by the deployment pipeline/operator.
-if (app.Environment.IsDevelopment() && builder.Configuration.GetValue("Database:AutoMigrate", false))
+// Opt-in schema preparation (Database__AutoMigrate=true). It is on in Development; a deployment without a separate
+// migration step turns it on explicitly. The idempotent demo seed runs in Development, or with Seed__Enabled=true.
+if (builder.Configuration.GetValue("Database:AutoMigrate", false))
 {
     using var scope = app.Services.CreateScope();
     var database = scope.ServiceProvider.GetRequiredService<HipoSimDbContext>();
     await database.Database.MigrateAsync();
-    await DatabaseSeed.SeedDevelopmentAsync(database, app.Configuration,
-        scope.ServiceProvider.GetRequiredService<IPasswordHasher<AppUser>>());
+    if (app.Environment.IsDevelopment() || builder.Configuration.GetValue("Seed:Enabled", false))
+    {
+        await DatabaseSeed.SeedDevelopmentAsync(database, app.Configuration,
+            scope.ServiceProvider.GetRequiredService<IPasswordHasher<AppUser>>());
+    }
 }
 
 await app.RunAsync();
