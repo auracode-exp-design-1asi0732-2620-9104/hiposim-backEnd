@@ -22,6 +22,15 @@ public sealed class AppUser
     public DateTimeOffset CreatedAt { get; set; }
 }
 
+public sealed class ContactMessage
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
 public sealed class StoredSimulation
 {
     public Guid Id { get; set; }

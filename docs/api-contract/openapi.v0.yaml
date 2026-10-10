@@ -51,6 +51,8 @@ tags:
     description: Mortgage simulation shared by the Landing Page, the web app and the mobile app.
   - name: Agencies
     description: Real estate agencies that receive leads.
+  - name: Contact
+    description: Contact form of the Landing Page.
 paths:
   /health:
     get:
@@ -384,6 +386,40 @@ paths:
               example:
                 - id: a3e32c74-3e12-43e2-b609-3189294ff3e5
                   name: HipoSim Demo Agency
+  /api/contact-messages:
+    post:
+      tags: [Contact]
+      operationId: createContactMessage
+      summary: Send a message from the contact form of the Landing Page
+      description: |
+        Anonymous and write-only (US19): the message is stored and its reception is confirmed. Messages cannot be
+        read through the API. At most 5 messages per minute are accepted from the same client address, and the body
+        cannot exceed 16 KB.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateContactMessageRequest"
+            example:
+              name: Ana Torres
+              email: ana@example.com
+              message: Does the simulator include the good payer bonus?
+      responses:
+        "201":
+          description: The message was stored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContactMessageResponse"
+              example:
+                id: 5b0f0e0c-6a53-4a4e-9a55-0f1f3c9d2a11
+                createdAt: "2026-10-10T20:15:00+00:00"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "429":
+          description: Too many messages from the same address. Try again in a minute.
 components:
   securitySchemes:
     bearerAuth:
@@ -411,6 +447,32 @@ components:
         status:
           type: string
           example: Healthy
+    CreateContactMessageRequest:
+      type: object
+      required: [name, email, message]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 150
+        message:
+          type: string
+          minLength: 1
+          maxLength: 2000
+    ContactMessageResponse:
+      type: object
+      required: [id, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
     AgencyResponse:
       type: object
       required: [id, name]
