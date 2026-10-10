@@ -10,6 +10,17 @@ namespace HipoSim.Api.Auth;
 [Route("api/auth")]
 public sealed class AuthController(AuthService service) : ControllerBase
 {
+    /// <summary>Register a buyer account (TS07, US13)</summary>
+    /// <remarks>
+    /// Creates a user with the `buyer` role and signs the buyer in: the response carries the JWT and the user data.
+    /// Both acceptances (terms and personal data processing, Law 29733) must be `true`; otherwise the account
+    /// is not created. Public registration never grants the advisor role.
+    /// </remarks>
+    /// <param name="request">Buyer data and the two required acceptances.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <response code="201">Account created and session started. The body carries the JWT and the user.</response>
+    /// <response code="400">Invalid data or an acceptance is `false`. `errors` lists each failing field by its camelCase name.</response>
+    /// <response code="409">The email is already registered.</response>
     [HttpPost("register")]
     [ProducesResponseType<AuthResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -26,6 +37,17 @@ public sealed class AuthController(AuthService service) : ControllerBase
             : StatusCode(StatusCodes.Status201Created, result.Value);
     }
 
+    /// <summary>Log in and get a JWT (TS07, US22, US26)</summary>
+    /// <remarks>
+    /// Works for buyers and advisors. The role travels in the token and in `user.role`. The token of an advisor
+    /// also carries the `agencyId` claim, so leads can be limited to the advisor's agency.
+    /// A failed login never says which of the two values is wrong.
+    /// </remarks>
+    /// <param name="request">Email and password.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <response code="200">Valid credentials. The body carries the JWT and the user.</response>
+    /// <response code="400">Missing or malformed email or password. `errors` lists each failing field.</response>
+    /// <response code="401">Invalid credentials. The message does not say which value is wrong.</response>
     [HttpPost("login")]
     [ProducesResponseType<AuthResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
