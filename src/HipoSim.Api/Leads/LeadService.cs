@@ -203,6 +203,59 @@ public sealed class LeadService(
             notes,
             history);
     }
+    
+    public async Task<UpdateLeadStatusResult> UpdateStatusAsync(
+        Guid leadId,
+        Guid agencyId,
+        Guid advisorId,
+        UpdateLeadStatusRequest? request,
+        CancellationToken cancellationToken = default)
+    {
+        string[] validStatuses =
+        [
+            "New",
+            "InContact",
+            "AppointmentScheduled",
+            "Closed",
+            "Discarded"
+        ];
+
+        if (request?.Status is null ||
+            !validStatuses.Contains(request.Status))
+        {
+            return UpdateLeadStatusResult.Invalid;
+        }
+
+        var lead = await database.Leads
+            .FirstOrDefaultAsync(
+                l => l.Id == leadId && l.AgencyId == agencyId,
+                cancellationToken);
+
+        if (lead is null)
+            return UpdateLeadStatusResult.NotFound;
+
+        if (lead.Status == request.Status)
+            return UpdateLeadStatusResult.Updated;
+
+        var previousStatus = lead.Status;
+        var now = clock.GetUtcNow();
+
+        lead.Status = request.Status;
+
+        database.LeadStatusChanges.Add(new LeadStatusChange
+        {
+            Id = Guid.NewGuid(),
+            LeadId = lead.Id,
+            ChangedBy = advisorId,
+            PreviousStatus = previousStatus,
+            NewStatus = request.Status,
+            ChangedAt = now
+        });
+
+        await database.SaveChangesAsync(cancellationToken);
+
+        return UpdateLeadStatusResult.Updated;
+    }
 
     private static double? GetNumber(JsonElement root, string propertyName)
     {

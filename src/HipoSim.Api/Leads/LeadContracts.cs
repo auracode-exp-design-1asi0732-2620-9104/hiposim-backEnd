@@ -68,3 +68,13 @@ public sealed record LeadStatusChangeResponse(
     string PreviousStatus,
     string NewStatus,
     DateTimeOffset ChangedAt);
+
+public sealed record UpdateLeadStatusRequest(
+    string? Status);
+
+public enum UpdateLeadStatusResult
+{
+    Updated,
+    Invalid,
+    NotFound
+}

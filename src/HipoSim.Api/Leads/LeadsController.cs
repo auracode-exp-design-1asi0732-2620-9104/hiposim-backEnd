@@ -113,5 +113,53 @@ public sealed class LeadsController(LeadService service) : ControllerBase
 
         return lead is null ? NotFound() : Ok(lead);
     }
+    
+    [HttpPatch("{id:guid}/status")]
+    [Authorize(Roles = "advisor")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateStatus(
+        Guid id,
+        [FromBody] UpdateLeadStatusRequest? request,
+        CancellationToken cancellationToken)
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var agencyClaim = User.FindFirstValue("agencyId");
+
+        if (!Guid.TryParse(userIdClaim, out var advisorId) ||
+            !Guid.TryParse(agencyClaim, out var agencyId) ||
+            advisorId == Guid.Empty ||
+            agencyId == Guid.Empty)
+        {
+            return Forbid();
+        }
+
+        var result = await service.UpdateStatusAsync(
+            id,
+            agencyId,
+            advisorId,
+            request,
+            cancellationToken);
+
+        return result switch
+        {
+            UpdateLeadStatusResult.Updated => Ok(
+                new { id, status = request!.Status }),
+
+            UpdateLeadStatusResult.Invalid => BadRequest(
+                new ProblemDetails
+                {
+                    Status = StatusCodes.Status400BadRequest,
+                    Title = "Invalid lead status."
+                }),
+
+            UpdateLeadStatusResult.NotFound => NotFound(),
+
+            _ => StatusCode(StatusCodes.Status500InternalServerError)
+        };
+    }
 
 }
