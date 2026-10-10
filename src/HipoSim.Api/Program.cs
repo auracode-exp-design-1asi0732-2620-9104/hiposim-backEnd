@@ -1,7 +1,9 @@
 using System.Reflection;
 using System.Security.Claims;
 using System.Text;
+using System.Threading.RateLimiting;
 using HipoSim.Api.Auth;
+using HipoSim.Api.Contact;
 using HipoSim.Api.Data;
 using HipoSim.Api.Options;
 using HipoSim.Api.Swagger;
@@ -63,6 +65,26 @@ builder.Services.AddCors(options => options.AddPolicy("hiposim-clients", policy 
         policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod();
 }));
 
+// The contact form is anonymous: at most 5 messages per minute from the same client address.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy(ContactMessagesController.RateLimitPolicy, context =>
+    {
+        // Behind a reverse proxy (Render) the client address arrives in X-Forwarded-For.
+        var forwarded = context.Request.Headers["X-Forwarded-For"].ToString().Split(',')[0].Trim();
+        var client = forwarded.Length > 0
+            ? forwarded
+            : context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(client, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        });
+    });
+});
+
 builder.Services.AddResponseCompression(options => options.EnableForHttps = true);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -120,6 +142,7 @@ app.UseResponseCompression();
 app.UseCors("hiposim-clients");
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new HealthResponse("Healthy")))
     .AllowAnonymous()
