@@ -4,7 +4,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HipoSim.Api.Data;
 
-/// <summary>Idempotent DEVELOPMENT-ONLY seed: a demo agency and an optional advisor account.</summary>
+/// <summary>
+/// Idempotent demo seed: a demo agency and an optional advisor account. It runs in Development, and in a demo
+/// deployment only when Seed:Enabled is set.
+/// </summary>
 public static class DatabaseSeed
 {
     public static readonly Guid DemoAgencyId = Guid.Parse("a3e32c74-3e12-43e2-b609-3189294ff3e5");

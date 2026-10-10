@@ -56,7 +56,25 @@ Para detener: `Ctrl+C` en la terminal de la API y `docker compose down` para Pos
 Si `dotnet test` falla, **no hacer merge**: revisar las salidas de los proyectos de pruebas, especialmente `HipoSim.Api.Tests`. GitHub Actions (`.github/workflows/api-ci.yml`) también ejecuta restore/build/test en PR contra `develop` o `main`.
 
 La configuración de desarrollo contiene credenciales **solo locales**. En despliegues reales debes configurar
-`ConnectionStrings__HipoSimDb` y `Jwt__SigningKey` mediante variables secretas (nunca subir claves de producción).
+`ConnectionStrings__HipoSimDb` (o `DATABASE_URL`) y `Jwt__SigningKey` mediante variables secretas (nunca subir claves de producción).
+
+## Deployment (Render)
+
+`render.yaml` describe el despliegue de demostración: un servicio web con el `Dockerfile` (rama `main`) y una base
+PostgreSQL 16, ambos en el plan gratuito. En Render: **New > Blueprint**, elegir este repositorio y aplicar.
+
+| Variable | Origen | Para qué |
+|---|---|---|
+| `DATABASE_URL` | La inyecta Render desde la base | La API la traduce a la cadena de conexión de Npgsql. |
+| `Jwt__SigningKey` | La genera Render | Firma de los JWT. |
+| `Database__AutoMigrate=true` | `render.yaml` | Aplica las migraciones al arrancar (no hay paso de migración aparte). |
+| `Seed__Enabled=true` | `render.yaml` | Crea la inmobiliaria demo y, con `Seed__Advisor__Email` y `Seed__Advisor__Password`, el asesor demo. |
+| `Seed__Advisor__Password` | La genera Render | Se consulta en el panel del servicio, pestaña Environment. |
+| `Swagger__Enabled=true` | `render.yaml` | Publica `/swagger`. |
+| `Cors__AllowedOrigins__0` | Se escribe en el panel | Origen de la aplicación web del Asesor. |
+
+Fuera de Development, las migraciones y el seed solo se ejecutan si esas variables están activas. El plan gratuito
+suspende el servicio tras un rato sin uso: la primera petición puede tardar cerca de un minuto.
 
 Cobertura (coverlet):
 

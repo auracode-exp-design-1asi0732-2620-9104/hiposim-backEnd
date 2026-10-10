@@ -1,0 +1,46 @@
+# Render Blueprint for the HipoSim API (demo deployment for the course).
+# New > Blueprint in the Render dashboard, pick this repository and the main branch.
+# No secret lives in this file: Render generates the JWT key and the advisor password, and injects the database URL.
+databases:
+  - name: hiposim-db
+    plan: free
+    region: oregon
+    databaseName: hiposim
+    user: hiposim
+    postgresMajorVersion: "16"
+
+services:
+  - type: web
+    name: hiposim-api
+    runtime: docker
+    plan: free
+    region: oregon
+    branch: main
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: PORT
+        value: "8080"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hiposim-db
+          property: connectionString
+      - key: Jwt__SigningKey
+        generateValue: true
+      # No migration step in this demo deployment: the API applies the migrations and the demo seed when it starts.
+      - key: Database__AutoMigrate
+        value: "true"
+      - key: Seed__Enabled
+        value: "true"
+      - key: Seed__Advisor__Email
+        value: asesor.demo@hiposim.test
+      - key: Seed__Advisor__Password
+        generateValue: true
+      - key: Swagger__Enabled
+        value: "true"
+      # Origin of the advisor web app (for example its Vercel URL). Set it in the dashboard; leave it empty until then.
+      - key: Cors__AllowedOrigins__0
+        sync: false
