@@ -1,7 +1,6 @@
-
+using System.Text.Json;
 using HipoSim.Api.Data;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
 
 namespace HipoSim.Api.Leads;
 
@@ -66,7 +65,7 @@ public sealed class LeadService(
                 lead.ConsentGrantedAt,
                 lead.CreatedAt));
     }
-    
+
     public async Task<IReadOnlyList<LeadInboxResponse>> GetInboxAsync(
         Guid agencyId,
         string? status,
@@ -100,23 +99,8 @@ public sealed class LeadService(
 
         return records.Select(record =>
         {
-            double? monthlyInstallment = null;
-            double? tcea = null;
-
             using var document = JsonDocument.Parse(record.ResponseJson);
             var root = document.RootElement;
-
-            if (root.TryGetProperty("monthlyInstallment", out var installment) &&
-                installment.ValueKind == JsonValueKind.Number)
-            {
-                monthlyInstallment = installment.GetDouble();
-            }
-
-            if (root.TryGetProperty("tcea", out var rate) &&
-                rate.ValueKind == JsonValueKind.Number)
-            {
-                tcea = rate.GetDouble();
-            }
 
             return new LeadInboxResponse(
                 record.Id,
@@ -124,11 +108,111 @@ public sealed class LeadService(
                 record.BuyerName,
                 record.BuyerEmail,
                 record.SimulationId,
-                monthlyInstallment,
-                tcea,
+                GetNumber(root, "monthlyInstallment"),
+                GetNumber(root, "tcea"),
                 record.Status,
                 record.CreatedAt);
         }).ToList();
     }
 
+    public async Task<LeadDetailResponse?> GetDetailAsync(
+        Guid leadId,
+        Guid agencyId,
+        CancellationToken cancellationToken = default)
+    {
+        var record = await (
+            from lead in database.Leads.AsNoTracking()
+            join buyer in database.Users.AsNoTracking()
+                on lead.BuyerId equals buyer.Id
+            join simulation in database.Simulations.AsNoTracking()
+                on lead.SimulationId equals simulation.Id
+            where lead.Id == leadId && lead.AgencyId == agencyId
+            select new
+            {
+                Lead = lead,
+                BuyerName = buyer.FullName,
+                BuyerEmail = buyer.Email,
+                BuyerPhone = buyer.Phone,
+                simulation.InputJson,
+                simulation.ResponseJson
+            }
+        ).FirstOrDefaultAsync(cancellationToken);
+
+        if (record is null)
+            return null;
+
+        double? propertyPrice;
+        double? downPayment;
+        double? monthlyInstallment;
+        double? tcea;
+
+        using (var input = JsonDocument.Parse(record.InputJson))
+        {
+            propertyPrice = GetNumber(input.RootElement, "propertyPrice");
+            downPayment = GetNumber(input.RootElement, "downPayment");
+        }
+
+        using (var output = JsonDocument.Parse(record.ResponseJson))
+        {
+            monthlyInstallment = GetNumber(
+                output.RootElement, "monthlyInstallment");
+
+            tcea = GetNumber(output.RootElement, "tcea");
+        }
+
+        var notes = await database.LeadNotes
+            .AsNoTracking()
+            .Where(n => n.LeadId == leadId)
+            .OrderByDescending(n => n.CreatedAt)
+            .Select(n => new LeadNoteResponse(
+                n.Id,
+                n.AuthorId,
+                n.Content,
+                n.CreatedAt))
+            .ToListAsync(cancellationToken);
+
+        var history = await database.LeadStatusChanges
+            .AsNoTracking()
+            .Where(h => h.LeadId == leadId)
+            .OrderByDescending(h => h.ChangedAt)
+            .Select(h => new LeadStatusChangeResponse(
+                h.Id,
+                h.ChangedBy,
+                h.PreviousStatus,
+                h.NewStatus,
+                h.ChangedAt))
+            .ToListAsync(cancellationToken);
+
+        var leadRecord = record.Lead;
+
+        return new LeadDetailResponse(
+            leadRecord.Id,
+            leadRecord.BuyerId,
+            record.BuyerName,
+            record.BuyerEmail,
+            record.BuyerPhone,
+            leadRecord.AgencyId,
+            leadRecord.SimulationId,
+            propertyPrice,
+            downPayment,
+            monthlyInstallment,
+            tcea,
+            leadRecord.Status,
+            leadRecord.ConsentGrantedAt,
+            leadRecord.CreatedAt,
+            notes,
+            history);
+    }
+
+    private static double? GetNumber(JsonElement root, string propertyName)
+    {
+        if (root.ValueKind == JsonValueKind.Object &&
+            root.TryGetProperty(propertyName, out var value) &&
+            value.ValueKind == JsonValueKind.Number)
+        {
+            return value.GetDouble();
+        }
+
+        return null;
+    }
 }

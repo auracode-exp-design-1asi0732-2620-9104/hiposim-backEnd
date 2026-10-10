@@ -88,4 +88,30 @@ public sealed class LeadsController(LeadService service) : ControllerBase
         return Ok(leads);
     }
 
+    [HttpGet("{id:guid}")]
+    [Authorize(Roles = "advisor")]
+    [ProducesResponseType<LeadDetailResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetDetail(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var agencyClaim = User.FindFirstValue("agencyId");
+
+        if (!Guid.TryParse(agencyClaim, out var agencyId) ||
+            agencyId == Guid.Empty)
+        {
+            return Forbid();
+        }
+
+        var lead = await service.GetDetailAsync(
+            id,
+            agencyId,
+            cancellationToken);
+
+        return lead is null ? NotFound() : Ok(lead);
+    }
+
 }

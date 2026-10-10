@@ -36,3 +36,35 @@ public sealed record LeadInboxResponse(
     double? Tcea,
     string Status,
     DateTimeOffset CreatedAt);
+
+
+public sealed record LeadDetailResponse(
+    Guid Id,
+    Guid BuyerId,
+    string BuyerName,
+    string BuyerEmail,
+    string BuyerPhone,
+    Guid AgencyId,
+    Guid SimulationId,
+    double? PropertyPrice,
+    double? DownPayment,
+    double? MonthlyInstallment,
+    double? Tcea,
+    string Status,
+    DateTimeOffset ConsentGrantedAt,
+    DateTimeOffset CreatedAt,
+    IReadOnlyList<LeadNoteResponse> Notes,
+    IReadOnlyList<LeadStatusChangeResponse> StatusHistory);
+
+public sealed record LeadNoteResponse(
+    Guid Id,
+    Guid AuthorId,
+    string Content,
+    DateTimeOffset CreatedAt);
+
+public sealed record LeadStatusChangeResponse(
+    Guid Id,
+    Guid ChangedBy,
+    string PreviousStatus,
+    string NewStatus,
+    DateTimeOffset ChangedAt);
