@@ -35,8 +35,11 @@ public sealed record AmortizationResult(
 /// </summary>
 /// <remarks>
 /// Grace: total capitalizes the period interest, partial pays only the interest.
-/// Balloon: the regular installment amortizes only (1 - BalloonRatio) of the financed amount, interest is
-/// still charged on the full balance, and the last installment settles whatever balance remains.
+/// The regular installment is calculated on the balance when the grace ends: the financed amount, except after a
+/// total grace, where it already includes the capitalized interest (deviation D5 from AutoFinance Pro, which used
+/// the financed amount and left the capitalized interest to the last installment).
+/// Balloon: the regular installment amortizes only (1 - BalloonRatio) of that balance, interest is still charged
+/// on the full balance, and the last installment settles whatever balance remains.
 /// With BalloonRatio = 0 this is the plain French method.
 /// </remarks>
 public static class AmortizationCalculator
@@ -101,7 +104,8 @@ public static class AmortizationCalculator
         }
 
         var paymentMonths = request.TermInMonths - request.GraceMonths;
-        var amortizableCapital = request.FinancedAmount * (1 - request.BalloonRatio);
+        // D5: "balance" is the financed amount unless a total grace capitalized interest into it.
+        var amortizableCapital = balance * (1 - request.BalloonRatio);
         var regularInstallment = FrenchInstallment(amortizableCapital, rate, paymentMonths);
         var balloonAmount = 0.0;
 
