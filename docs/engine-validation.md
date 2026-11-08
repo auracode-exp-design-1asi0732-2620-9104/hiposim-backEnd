@@ -244,8 +244,9 @@ Period  Payment date  Installment    Interest  Amortization       Balance
 | `HipoSim.Simulations.Tests` | `SimulationRequestValidatorTests` | 32 | Unitaria | Reglas de validación de TS06: campos obligatorios, 10% de cuota inicial, tasa como fracción, plazo y gracia. |
 | | `SimulationServiceTests` | 10 | Unitaria | Servicio con repositorio y reloj simulados: bono, supuestos, fecha de inicio en Lima, saldo inicial de cada fila, persistencia. |
 | | `SimulationsEndpointTests` | 12 | Integración | `POST /api/simulations` con el controlador real: 200, 400, JSON inválido, cuerpo vacío, comprador autenticado. |
-| | `ContractConformanceTests` | 6 | Contrato | Los ejemplos del YAML se envían al endpoint y las respuestas deben coincidir con lo documentado. |
-| **Total** | | **169** | | |
+| | `GracePeriodEndpointTests` | 17 | Integración | US03 con el controlador real: gracia parcial y total de 3 meses (solo intereses, o sin pagos con capitalización, y cuota recalculada desde el mes 4), cuotas iguales sin cuota final enorme, costo creciente, TCEA igual a la tasa, seguros durante la gracia, borde de 239 meses, 5 casos de gracia inconsistente (400) y la gracia guardada en la simulación. Los valores esperados salen de fórmulas escritas en la prueba. |
+| | `ContractConformanceTests` | 8 | Contrato | Los ejemplos del YAML (`withBonus`, `partialGrace`, `totalGrace` y `outOfRange`) se envían al endpoint y las respuestas deben coincidir con lo documentado. |
+| **Total** | | **188** | | |
 
 ## **2.3. Execution Results**
 
@@ -259,8 +260,8 @@ dotnet test --collect:"XPlat Code Coverage" --logger "trx"
 | Proyecto | Pruebas | Correctas | Con error | Omitidas | Duración |
 |:--|--:|--:|--:|--:|--:|
 | `HipoSim.FinancialEngine.Tests` | 109 | 109 | 0 | 0 | 214 ms |
-| `HipoSim.Simulations.Tests` | 60 | 60 | 0 | 0 | 879 ms |
-| **Total** | **169** | **169** | **0** | **0** | |
+| `HipoSim.Simulations.Tests` | 79 | 79 | 0 | 0 | 1 s |
+| **Total** | **188** | **188** | **0** | **0** | |
 
 <div style="text-align: justify; line-height: 1.6;">
 
@@ -305,6 +306,9 @@ Para comprobar que las pruebas detectan errores y no solo pasan, se introdujeron
 | Se renombra la propiedad `Irr` de la respuesta en el código | `HipoSim.Simulations.Tests` | Error de compilación en las pruebas |
 | Solo cambia el nombre JSON de `irr` a `irrAnnual` (el código compila igual) | `HipoSim.Simulations.Tests` (56 pruebas en ese momento) | 3 fallan (contrato) |
 | Tras la gracia total, la cuota vuelve a calcularse sobre el monto financiado (comportamiento anterior a D5) | Paridad y `AmortizationCalculatorTests` (70 pruebas) | 13 fallan: 10 escenarios de gracia total, el resumen de paridad y las 2 pruebas nuevas de gracia total |
+| La misma reversión de D5 | `GracePeriodEndpointTests` (17 pruebas) | 3 fallan |
+| La gracia parcial deja de pagar el interés (la cuota de esos meses pasa a 0) | `GracePeriodEndpointTests` (17 pruebas) | 4 fallan |
+| La gracia total deja de capitalizar el interés | `GracePeriodEndpointTests` (17 pruebas) | 3 fallan |
 
 ## **2.6. Traceability**
 
@@ -316,6 +320,8 @@ Para comprobar que las pruebas detectan errores y no solo pasan, se introdujeron
 | TS06, escenario 3: datos incompletos (400 con lista de campos) | `Post_WhenRequiredFieldsAreMissing_Returns400ListingEveryField`, `Post_WhenOnlySomeFieldsAreMissing_ListsOnlyThose`. |
 | US05, escenario 1: bono aplicado | `BenefitsEngineTests`, `FinancialEngineTests`, `SimulationServiceTests`, ejemplo `withBonus` del contrato. |
 | US05, escenario 2: vivienda fuera de rango | `BenefitsEngineTests`, `Post_WhenPropertyIsOutsideTheBonusRange_Returns200WithoutTheBonus`, ejemplo `outOfRange` del contrato. |
+| US03, escenario 1: gracia parcial de 3 meses (solo intereses y cuota recalculada desde el mes 4) | `GracePeriodEndpointTests.Post_WhenPartialGraceOfThreeMonths_...`, `BuildSchedule_WhenPartialGrace_...` en `AmortizationCalculatorTests`, ejemplo `partialGrace` del contrato. |
+| US03, escenario 2: gracia total de 3 meses (sin pagos e intereses capitalizados) | `GracePeriodEndpointTests.Post_WhenTotalGraceOfThreeMonths_...` y `..._EveryRegularInstallmentIsEqual...`, `BuildSchedule_WhenTotalGrace_...` (desviación D5), ejemplo `totalGrace` del contrato. |
 | US04, escenario 1: TCEA con seguros | `FinancialIndicatorsTests`, `SimulationServiceTests`, `Post_WhenTheConfigurationDefinesInsurance_TheAssumptionsAreEchoedAndUsed`. |
 | US02, escenario 1: cronograma con saldo inicial, amortización, interés y saldo final (parte de API) | `CalculateAsync_WhenCalculated_EachRowOpensWithThePreviousClosingBalance`, `ContractConformanceTests` (campo `openingBalance`). |
 
