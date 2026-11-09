@@ -124,6 +124,51 @@ public class ContractConformanceTests
         }
     }
 
+    private static readonly string[] ReportPath = ["paths", "/api/simulations/{id}/report", "get"];
+
+    [Fact]
+    public async Task GetReport_WhenDownloadingAPdf_ReturnsTheDocumentedMediaTypeAndFileName()
+    {
+        await using var host = await SimulationsTestHost.StartAsync();
+        var created = await PostAsync(host, ToJson(Node([.. SimulationPath, "requestBody", "content", "application/json", "examples", "withBonus", "value"]))!.ToJsonString());
+        var id = created.Body.GetProperty("simulationId").GetString();
+        var documented = Map([.. ReportPath, "responses", "200", "content"]);
+
+        var response = await host.GetAsync($"/api/simulations/{id}/report");
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(["application/pdf"], documented.Keys.Cast<string>());
+        Assert.Equal("application/pdf", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("attachment", response.Content.Headers.ContentDisposition?.DispositionType);
+        Assert.Equal($"hiposim-simulacion-{id}.pdf", response.Content.Headers.ContentDisposition?.FileName);
+    }
+
+    [Theory]
+    [InlineData("403", "11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222")]
+    [InlineData("404", null, null)]
+    public async Task GetReport_WhenTheDocumentedErrorHappens_ReturnsTheDocumentedProblem(string status, string? ownerId, string? callerId)
+    {
+        await using var host = await SimulationsTestHost.StartAsync();
+        var expected = Map([.. ReportPath, "responses", status, "content", "application/problem+json", "example"]);
+        var id = Guid.NewGuid().ToString();
+        if (ownerId is not null)
+        {
+            var created = await host.PostAsync(
+                ToJson(Node([.. SimulationPath, "requestBody", "content", "application/json", "examples", "withBonus", "value"]))!.ToJsonString(),
+                ownerId);
+            using var createdBody = JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+            id = createdBody.RootElement.GetProperty("simulationId").GetString()!;
+        }
+
+        var response = await host.GetAsync($"/api/simulations/{id}/report", callerId);
+
+        Assert.Equal(int.Parse(status), (int)response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal((string)expected["title"], document.RootElement.GetProperty("title").GetString());
+        Assert.Equal(int.Parse((string)expected["status"]), document.RootElement.GetProperty("status").GetInt32());
+    }
+
     [Theory]
     [InlineData("downPaymentTooLow", """{"propertyPrice":280000,"downPayment":10000,"annualEffectiveRate":0.085,"termInMonths":240}""")]
     [InlineData("missingFields", """{"downPayment":42000,"annualEffectiveRate":0.085}""")]

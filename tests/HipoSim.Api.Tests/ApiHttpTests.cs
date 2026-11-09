@@ -74,6 +74,25 @@ public sealed class ApiHttpTests
     }
 
     [Fact]
+    public async Task Swagger_document_describes_the_pdf_report_endpoint()
+    {
+        using var factory = new TestApiFactory();
+        using var client = factory
+            .WithWebHostBuilder(builder => builder.UseSetting("Swagger:Enabled", "true"))
+            .CreateClient();
+
+        var response = await client.GetAsync("/swagger/v1/swagger.json");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var operation = document.RootElement.GetProperty("paths").GetProperty("/api/simulations/{id}/report").GetProperty("get");
+        var responses = operation.GetProperty("responses");
+        Assert.True(responses.GetProperty("200").GetProperty("content").TryGetProperty("application/pdf", out _));
+        Assert.True(responses.TryGetProperty("403", out _));
+        Assert.True(responses.TryGetProperty("404", out _));
+    }
+
+    [Fact]
     public async Task Root_is_not_found_when_swagger_is_disabled()
     {
         using var factory = new TestApiFactory();
@@ -125,6 +144,72 @@ public sealed class ApiHttpTests
         var record = await db.Simulations.SingleAsync();
         Assert.Equal(simulationId, record.Id);
         Assert.NotNull(record.BuyerId);
+    }
+
+    private static async Task<string> RegisterBuyerAsync(HttpClient client, string email)
+    {
+        var register = await client.PostAsJsonAsync("/api/auth/register", new
+        {
+            fullName = "Buyer " + email, email, phone = "987654321",
+            password = "Strong-Sample-2026", acceptedTerms = true, acceptedDataProcessing = true
+        });
+        Assert.Equal(HttpStatusCode.Created, register.StatusCode);
+        using var json = JsonDocument.Parse(await register.Content.ReadAsStringAsync());
+        return json.RootElement.GetProperty("accessToken").GetString()!;
+    }
+
+    private static async Task<Guid> CreateSimulationAsync(HttpClient client, string? accessToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/simulations")
+        {
+            Content = JsonContent.Create(new
+            {
+                propertyPrice = 280000.0, downPayment = 42000.0, annualEffectiveRate = 0.085, termInMonths = 240,
+                graceType = "partial", gracePeriodMonths = 3, applyGoodPayerBonus = true, startDate = "2026-10-01"
+            })
+        };
+        if (accessToken is not null)
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+        var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return json.RootElement.GetProperty("simulationId").GetGuid();
+    }
+
+    private static async Task<HttpResponseMessage> GetReportAsync(HttpClient client, Guid id, string? accessToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/simulations/{id}/report");
+        if (accessToken is not null)
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+        return await client.SendAsync(request);
+    }
+
+    [Fact]
+    public async Task Simulation_report_is_read_back_from_the_database_and_only_its_owner_can_download_it()
+    {
+        using var factory = new TestApiFactory();
+        using var client = factory.CreateClient();
+        var ownerToken = await RegisterBuyerAsync(client, "owner@example.com");
+        var otherToken = await RegisterBuyerAsync(client, "other@example.com");
+        var ownedId = await CreateSimulationAsync(client, ownerToken);
+        var anonymousId = await CreateSimulationAsync(client, accessToken: null);
+
+        // The owner gets the PDF built from the persisted JSON (dates, enums and the 240 rows survive the round trip).
+        var owner = await GetReportAsync(client, ownedId, ownerToken);
+        Assert.Equal(HttpStatusCode.OK, owner.StatusCode);
+        Assert.Equal("application/pdf", owner.Content.Headers.ContentType?.MediaType);
+        var pdf = await owner.Content.ReadAsByteArrayAsync();
+        Assert.Equal("%PDF-", System.Text.Encoding.ASCII.GetString(pdf, 0, 5));
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await GetReportAsync(client, ownedId, otherToken)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await GetReportAsync(client, ownedId, accessToken: null)).StatusCode);
+
+        // A simulation calculated without signing in is open to whoever has its id.
+        Assert.Equal(HttpStatusCode.OK, (await GetReportAsync(client, anonymousId, accessToken: null)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await GetReportAsync(client, anonymousId, otherToken)).StatusCode);
+
+        var unknown = await GetReportAsync(client, Guid.NewGuid(), ownerToken);
+        Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
     }
 
     [Fact]
