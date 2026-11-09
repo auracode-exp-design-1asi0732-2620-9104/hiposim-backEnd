@@ -4,7 +4,7 @@ info:
   version: 0.1.0
   description: |
     Contract v0 (DRAFT) shared by the Android app, the advisor web app and the API.
-    Scope: health, authentication and the simulation endpoint (TS06, TS07, US01, US02, US04, US05, US13, US22, US26).
+    Scope: health, authentication, the simulation endpoint and its PDF report (TS03, TS06, TS07, US01, US02, US04, US05, US13, US22, US26).
     It also lists the agencies a buyer can send a simulation to (`GET /api/agencies`, US21).
     Leads (TS08, `/api/leads`) are not in this version.
 
@@ -365,6 +365,63 @@ paths:
                     errors:
                       annualEffectiveRate:
                         - The annualEffectiveRate must be a fraction greater than 0 and at most 1 (0.085 means 8.5%).
+  /api/simulations/{id}/report:
+    get:
+      tags: [Simulations]
+      operationId: getSimulationReport
+      summary: Download the PDF report of a simulation (TS03)
+      description: |
+        Returns the summary of a persisted simulation and its full amortization schedule as a PDF document, sent as an
+        attachment named `hiposim-simulacion-{id}.pdf`. The text of the document is in Spanish.
+
+        **Who can download it.**
+        - A simulation calculated without signing in can be downloaded by anyone who has its `simulationId`.
+        - A simulation calculated by a signed-in buyer can be downloaded only by that buyer. Any other caller, signed in
+          or not, gets 403.
+        - An `id` that is not a UUID or that no simulation has gets 404.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The `simulationId` returned by `POST /api/simulations`.
+          schema:
+            type: string
+            format: uuid
+          example: 3f9b8c2e-6a1d-4c58-9e0f-7d2b5a1c4e90
+      responses:
+        "200":
+          description: The PDF document.
+          headers:
+            Content-Disposition:
+              description: '`attachment; filename=hiposim-simulacion-{id}.pdf`'
+              schema:
+                type: string
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "403":
+          description: The simulation belongs to a buyer and the caller is not that buyer.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              example:
+                title: The simulation belongs to another user.
+                status: 403
+        "404":
+          description: No simulation has that id.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              example:
+                title: Simulation not found.
+                status: 404
   /api/agencies:
     get:
       tags: [Agencies]

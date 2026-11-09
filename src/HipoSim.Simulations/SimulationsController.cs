@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
+using HipoSim.Simulations.Reports;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HipoSim.Simulations;
@@ -8,7 +9,7 @@ namespace HipoSim.Simulations;
 // No [ApiController] on purpose: its automatic 400 would put binding errors under ASP.NET keys ("$.propertyPrice").
 // The contract wants every error keyed by the camelCase request property, so the action builds the response itself.
 [Route("api/simulations")]
-public sealed class SimulationsController(ISimulationService service) : ControllerBase
+public sealed class SimulationsController(ISimulationService service, ISimulationReportService reports) : ControllerBase
 {
     /// <summary>Calculate a mortgage simulation (TS06, US01, US02, US04, US05)</summary>
     /// <remarks>
@@ -51,6 +52,38 @@ public sealed class SimulationsController(ISimulationService service) : Controll
         {
             return InvalidRequest(exception.Errors);
         }
+    }
+
+    /// <summary>Download the PDF report of a simulation (TS03)</summary>
+    /// <remarks>
+    /// Returns the simulation summary and the full amortization schedule as a PDF document.
+    ///
+    /// A simulation calculated without signing in can be downloaded by anyone who has its `simulationId`.
+    /// A simulation calculated by a signed-in buyer can be downloaded only by that buyer: any other caller gets 403.
+    /// </remarks>
+    /// <param name="id">The `simulationId` returned by `POST /api/simulations`.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <response code="200">The PDF document (`application/pdf`), sent as an attachment.</response>
+    /// <response code="403">The simulation belongs to a buyer and the caller is not that buyer.</response>
+    /// <response code="404">No simulation has that id.</response>
+    [HttpGet("{id:guid}/report")]
+    [Produces("application/pdf")]
+    [ProducesResponseType<FileContentResult>(StatusCodes.Status200OK, "application/pdf")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    public async Task<IActionResult> GetReport(Guid id, CancellationToken cancellationToken)
+    {
+        var report = await reports.GetReportAsync(id, GetBuyerId(), cancellationToken);
+        return report.Status switch
+        {
+            SimulationReportStatus.Ready => File(report.Pdf!, "application/pdf", report.FileName),
+            SimulationReportStatus.Forbidden => Problem(
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "The simulation belongs to another user."),
+            _ => Problem(
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Simulation not found."),
+        };
     }
 
     private Guid? GetBuyerId()

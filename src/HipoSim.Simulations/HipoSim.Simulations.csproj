@@ -16,4 +16,8 @@
     <ProjectReference Include="..\HipoSim.FinancialEngine\HipoSim.FinancialEngine.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="QuestPDF" Version="2026.9.1" />
+  </ItemGroup>
+
 </Project>
