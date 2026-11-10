@@ -1,0 +1,20 @@
+{
+  "_note": "EJEMPLO. Los nombres de columnas y de eventos escritos en MAYUSCULAS son marcadores: reemplacelos por los reales de la tabla usage_events (TS09) antes de usar este archivo. Copielo como kpi_config.json.",
+  "columns": {
+    "event": "COLUMNA_NOMBRE_EVENTO",
+    "time": "COLUMNA_FECHA",
+    "session": "COLUMNA_SESION",
+    "source": "COLUMNA_ORIGEN"
+  },
+  "kpis": [
+    { "id": "sessions", "label": "Sesiones con al menos un evento", "type": "sessions" },
+    { "id": "sim_started", "label": "Simulaciones iniciadas", "type": "count", "event": "EVENTO_SIMULACION_INICIADA" },
+    { "id": "sim_completed", "label": "Simulaciones completadas", "type": "count", "event": "EVENTO_SIMULACION_COMPLETADA" },
+    { "id": "completion_rate", "label": "Tasa de finalizacion de la simulacion", "type": "ratio", "numerator": "sim_completed", "denominator": "sim_started" },
+    { "id": "sessions_with_sim", "label": "Sesiones con una simulacion completada", "type": "sessions", "event": "EVENTO_SIMULACION_COMPLETADA" },
+    { "id": "sessions_with_contact", "label": "Sesiones con un contacto enviado", "type": "sessions", "event": "EVENTO_CONTACTO_ENVIADO" },
+    { "id": "contact_conversion", "label": "Conversion a contacto", "type": "ratio", "numerator": "sessions_with_contact", "denominator": "sessions_with_sim" },
+    { "id": "pdf_downloads", "label": "Descargas de PDF", "type": "count", "event": "EVENTO_PDF_DESCARGADO" },
+    { "id": "time_to_first_sim", "label": "Mediana de tiempo hasta la primera simulacion completada", "type": "median_seconds_between", "to": "EVENTO_SIMULACION_COMPLETADA" }
+  ]
+}

@@ -23,6 +23,7 @@ El motor de Franco López es un port a C# de **AutoFinance Pro** (Python), valid
 | `docs/engine-validation.md` | Documento de validación del motor y Testing Suite Evidence. |
 | `docs/Informe-avance-y-contrato-API-v0.docx` | Informe de avance y contrato v0 para revisión de Carlos. |
 | `tools/generate_parity_cases.py` | Regenera los datos de paridad ejecutando el motor original de Python. |
+| `tools/export_usage_events.py`, `tools/compute_kpis.py` | EXP2: exportan los eventos de uso a CSV y calculan KPIs; ver `docs/exp2-events-and-kpis.md`. |
 
 ## Requirements
 
