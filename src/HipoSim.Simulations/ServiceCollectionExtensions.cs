@@ -1,4 +1,5 @@
 using HipoSim.FinancialEngine;
+using HipoSim.Simulations.Reports;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -21,6 +22,8 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton(new FinancialEngine.FinancialEngine());
         services.TryAddSingleton<SimulationRequestValidator>();
         services.TryAddScoped<ISimulationService, SimulationService>();
+        services.TryAddSingleton<ISimulationReportGenerator, QuestPdfSimulationReportGenerator>();
+        services.TryAddScoped<ISimulationReportService, SimulationReportService>();
         return services;
     }
 }

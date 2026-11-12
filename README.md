@@ -15,12 +15,13 @@ El motor de Franco López es un port a C# de **AutoFinance Pro** (Python), valid
 | `src/HipoSim.Api` | Host API ASP.NET Core net9.0, JWT, EF Core, migraciones PostgreSQL, seed de desarrollo y Swagger. |
 | `tests/HipoSim.Api.Tests` | Nuevas pruebas de validación, registro, contraseñas, duplicados, login y claims JWT. |
 | `src/HipoSim.FinancialEngine` | Motor financiero puro (net8.0): método francés, gracia total o parcial, cuota balón, TEA a tasa mensual, VAN, TIR, TCEA y bono del buen pagador. Sin dependencias externas. |
-| `src/HipoSim.Simulations` | Endpoint `POST /api/simulations` (net8.0): validación, servicio, controlador y contratos JSON. Se registra con `AddSimulations()`. |
+| `src/HipoSim.Simulations` | Endpoints `POST /api/simulations` y `GET /api/simulations/{id}/report` (net8.0): validación, servicio, controlador, contratos JSON y reporte PDF. Se registra con `AddSimulations()`. |
 | `tests/HipoSim.FinancialEngine.Tests` | 106 pruebas del motor, incluida la paridad contra Python (48 escenarios en `GoldenData/python-parity-cases.json`). |
 | `tests/HipoSim.Simulations.Tests` | 60 pruebas del endpoint: validador, servicio, HTTP real con TestServer y conformidad con el contrato OpenAPI. |
 | `samples/HipoSim.EnginePrototype` | Consola que ejecuta el ejemplo del contrato (S/ 280,000, TEA 8.5 %, 20 años, bono solicitado). |
 | `docs/api-contract/openapi.v0.yaml` | Contrato OpenAPI 3.0.3 v0.1.0 (health, registro, login, simulación y listado de inmobiliarias). |
 | `docs/engine-validation.md` | Documento de validación del motor y Testing Suite Evidence. |
+| `docs/ts03-simulation-report.md` | Reporte PDF de una simulación (`GET /api/simulations/{id}/report`): reglas de acceso, diseño y biblioteca. |
 | `docs/Informe-avance-y-contrato-API-v0.docx` | Informe de avance y contrato v0 para revisión de Carlos. |
 | `tools/generate_parity_cases.py` | Regenera los datos de paridad ejecutando el motor original de Python. |
 
@@ -113,7 +114,7 @@ sección correspondiente del informe.
 
 ## Scope and limitations
 
-- Se implementan `GET /health`, `POST /api/auth/register`, `POST /api/auth/login` y el existente `POST /api/simulations`.
+- Se implementan `GET /health`, `POST /api/auth/register`, `POST /api/auth/login`, el existente `POST /api/simulations` y `GET /api/simulations/{id}/report` (TS03).
 - La pantalla visual de registro de US13 pertenece al repositorio **móvil**; este backend implementa su API.
 - No se han desplegado recursos reales ni configurado protecciones de rama en GitHub desde este paquete.
 - Las evidencias de ejecución/despliegue requieren capturas reales al ejecutarlo; no se incluyen evidencias simuladas.
