@@ -208,6 +208,28 @@ paths:
                   graceType: none
                   applyGoodPayerBonus: true
                   startDate: "2026-10-01"
+              partialGrace:
+                summary: Partial grace of 3 months at the reference rate (TEA 8.85%), only interest is paid (US03)
+                value:
+                  propertyPrice: 280000
+                  downPayment: 42000
+                  annualEffectiveRate: 0.0885
+                  termInMonths: 240
+                  gracePeriodMonths: 3
+                  graceType: partial
+                  applyGoodPayerBonus: true
+                  startDate: "2026-10-01"
+              totalGrace:
+                summary: Total grace of 3 months at the reference rate (TEA 8.85%), the interest is capitalized (US03)
+                value:
+                  propertyPrice: 280000
+                  downPayment: 42000
+                  annualEffectiveRate: 0.0885
+                  termInMonths: 240
+                  gracePeriodMonths: 3
+                  graceType: total
+                  applyGoodPayerBonus: true
+                  startDate: "2026-10-01"
               outOfRange:
                 summary: Property outside the bonus range (S/ 450,000)
                 value:
@@ -279,6 +301,160 @@ paths:
                         propertyInsurance: 0
                         creditLifeInsurance: 0
                         totalPayment: 1863.99
+                        isGracePeriod: false
+                partialGrace:
+                  summary: Partial grace of 3 months, bonus applied (schedule shortened to rows 1 to 4 and the last of 240)
+                  value:
+                    simulationId: 07bf1e69-7ee7-4285-af77-84c420c6cf4a
+                    financedAmount: 219800
+                    monthlyInstallment: 1918.11
+                    totalPaid: 459268.38
+                    totalInterest: 239468.7
+                    additionalCosts: 0
+                    tcea: 0.0885
+                    irr: 0.0885
+                    npv: -16074.7
+                    benefit:
+                      name: Good Payer Bonus
+                      eligible: true
+                      appliedAmount: 18200
+                    assumptions:
+                      monthlyPropertyInsurance: 0
+                      monthlyCreditLifeInsurance: 0
+                      administrativeExpenses: 0
+                      annualDiscountRate: 0.1
+                    amortizationSchedule:
+                      - period: 1
+                        paymentDate: "2026-11-01"
+                        openingBalance: 219800
+                        installment: 1558.77
+                        interest: 1558.77
+                        amortization: 0
+                        remainingBalance: 219800
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 1558.77
+                        isGracePeriod: true
+                      - period: 2
+                        paymentDate: "2026-12-01"
+                        openingBalance: 219800
+                        installment: 1558.77
+                        interest: 1558.77
+                        amortization: 0
+                        remainingBalance: 219800
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 1558.77
+                        isGracePeriod: true
+                      - period: 3
+                        paymentDate: "2027-01-01"
+                        openingBalance: 219800
+                        installment: 1558.77
+                        interest: 1558.77
+                        amortization: 0
+                        remainingBalance: 219800
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 1558.77
+                        isGracePeriod: true
+                      - period: 4
+                        paymentDate: "2027-02-01"
+                        openingBalance: 219800
+                        installment: 1918.11
+                        interest: 1558.77
+                        amortization: 359.35
+                        remainingBalance: 219440.65
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 1918.11
+                        isGracePeriod: false
+                      - period: 240
+                        paymentDate: "2046-10-01"
+                        openingBalance: 1904.6
+                        installment: 1918.11
+                        interest: 13.51
+                        amortization: 1904.6
+                        remainingBalance: 0
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 1918.11
+                        isGracePeriod: false
+                totalGrace:
+                  summary: Total grace of 3 months, bonus applied (schedule shortened to rows 1 to 4 and the last of 240)
+                  value:
+                    simulationId: 9e5d77df-c0df-4c36-9943-1f1823ecf5a3
+                    financedAmount: 219800
+                    monthlyInstallment: 1959.21
+                    totalPaid: 464332.77
+                    totalInterest: 244532.6
+                    additionalCosts: 0
+                    tcea: 0.0885
+                    irr: 0.0885
+                    npv: -16410.74
+                    benefit:
+                      name: Good Payer Bonus
+                      eligible: true
+                      appliedAmount: 18200
+                    assumptions:
+                      monthlyPropertyInsurance: 0
+                      monthlyCreditLifeInsurance: 0
+                      administrativeExpenses: 0
+                      annualDiscountRate: 0.1
+                    amortizationSchedule:
+                      - period: 1
+                        paymentDate: "2026-11-01"
+                        openingBalance: 219800
+                        installment: 0
+                        interest: 1558.77
+                        amortization: 0
+                        remainingBalance: 221358.77
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 0
+                        isGracePeriod: true
+                      - period: 2
+                        paymentDate: "2026-12-01"
+                        openingBalance: 221358.77
+                        installment: 0
+                        interest: 1569.82
+                        amortization: 0
+                        remainingBalance: 222928.59
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 0
+                        isGracePeriod: true
+                      - period: 3
+                        paymentDate: "2027-01-01"
+                        openingBalance: 222928.59
+                        installment: 0
+                        interest: 1580.95
+                        amortization: 0
+                        remainingBalance: 224509.54
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 0
+                        isGracePeriod: true
+                      - period: 4
+                        paymentDate: "2027-02-01"
+                        openingBalance: 224509.54
+                        installment: 1959.21
+                        interest: 1592.16
+                        amortization: 367.04
+                        remainingBalance: 224142.49
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 1959.21
+                        isGracePeriod: false
+                      - period: 240
+                        paymentDate: "2046-10-01"
+                        openingBalance: 1945.41
+                        installment: 1959.21
+                        interest: 13.8
+                        amortization: 1945.41
+                        remainingBalance: 0
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 1959.21
                         isGracePeriod: false
                 outOfRange:
                   summary: Bonus requested but the property does not qualify (schedule shortened to 3 of 240 rows)
@@ -768,13 +944,21 @@ components:
           type: integer
           minimum: 0
           default: 0
-          description: Months of grace at the start of the loan (US03, not exposed by the apps in this delivery).
+          description: |
+            Months of grace at the start of the loan (US03). Their rows have `isGracePeriod: true` in the schedule.
+            It must be lower than `termInMonths`, and greater than 0 exactly when `graceType` is `total` or `partial`.
         graceType:
           type: string
           enum: [none, total, partial]
           default: none
           description: |
-            `total` capitalizes the interest of each grace month, `partial` pays only the interest.
+            `total`: nothing is paid during the grace and the interest of each month is added to the balance
+            (capitalized). `partial`: only the interest is paid and the balance does not change.
+
+            In both cases `monthlyInstallment` is the regular installment of the first month after the grace,
+            calculated on the balance at that moment (after a total grace that balance already includes the
+            capitalized interest), so the loan ends at zero with equal installments. Insurance, when configured, is
+            still charged during the grace months.
         applyGoodPayerBonus:
           type: boolean
           default: false

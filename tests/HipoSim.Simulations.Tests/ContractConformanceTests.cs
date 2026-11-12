@@ -79,6 +79,8 @@ public class ContractConformanceTests
 
     [Theory]
     [InlineData("withBonus")]
+    [InlineData("partialGrace")]
+    [InlineData("totalGrace")]
     [InlineData("outOfRange")]
     public async Task Post_WhenSendingAContractExample_ReturnsTheDocumentedResponse(string exampleName)
     {
@@ -106,14 +108,13 @@ public class ContractConformanceTests
             Assert.Equal(Number(expectedAssumptions[field]), body.GetProperty("assumptions").GetProperty(field).GetDouble(), 6);
         }
 
-        // The documented schedule shows the first two rows and the last one of the real 240.
+        // The documented schedule shows some rows of the real 240 (the first ones and the last one); each is found by its period.
         var schedule = body.GetProperty("amortizationSchedule");
         var documentedRows = (List<object>)expected["amortizationSchedule"];
-        int[] actualIndexes = [0, 1, schedule.GetArrayLength() - 1];
         for (var row = 0; row < documentedRows.Count; row++)
         {
             var documented = (Dictionary<object, object>)documentedRows[row];
-            var actual = schedule[actualIndexes[row]];
+            var actual = schedule[int.Parse((string)documented["period"]) - 1];
             Assert.Equal(int.Parse((string)documented["period"]), actual.GetProperty("period").GetInt32());
             Assert.Equal((string)documented["paymentDate"], actual.GetProperty("paymentDate").GetString());
             Assert.Equal(bool.Parse((string)documented["isGracePeriod"]), actual.GetProperty("isGracePeriod").GetBoolean());
