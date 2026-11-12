@@ -44,7 +44,7 @@ La **implementación de referencia** es el motor Python de AutoFinance Pro, ejec
 
 <div style="text-align: justify; line-height: 1.6;">
 
-El método tiene cuatro pasos. Primero, el script `tools/generate_parity_cases.py` ejecuta el motor Python original sobre 48 escenarios y guarda las entradas y los resultados esperados en `GoldenData/python-parity-cases.json`. Segundo, la prueba `PythonParityTests` ejecuta los mismos escenarios en C#, partiendo de exactamente los mismos números (las tasas se guardan como la fracción que calcula Python). Tercero, compara cada fila del cronograma y cada indicador. Cuarto, falla si algún monto difiere en más de **S/ 0.01** o alguna tasa en más de **0.000001**, o si cambia el número de cuota, la fecha de pago o la marca de periodo de gracia.
+El método tiene cuatro pasos. Primero, el script `tools/generate_parity_cases.py` ejecuta el motor Python original sobre 48 escenarios (aplicando en memoria solo la desviación D5 de la gracia total, que cambia 10 escenarios; los otros 38 salen del código original sin modificar) y guarda las entradas y los resultados esperados en `GoldenData/python-parity-cases.json`. Segundo, la prueba `PythonParityTests` ejecuta los mismos escenarios en C#, partiendo de exactamente los mismos números (las tasas se guardan como la fracción que calcula Python). Tercero, compara cada fila del cronograma y cada indicador. Cuarto, falla si algún monto difiere en más de **S/ 0.01** o alguna tasa en más de **0.000001**, o si cambia el número de cuota, la fecha de pago o la marca de periodo de gracia.
 
 </div>
 
@@ -91,7 +91,7 @@ Las cifras de referencia son las registradas en las pruebas de AutoFinance Pro (
 
 <div style="text-align: justify; line-height: 1.6;">
 
-El caso 3 (S/ 24,000, TNA 12% con capitalización mensual, 48 meses, gracia total de 2 meses, balón 20%) no tiene cifras puntuales en el material disponible; su referencia es cualitativa: el saldo debe crecer durante la gracia por capitalización de intereses y el crédito debe terminar en cero. El C# cumple ambas condiciones. Además, el resultado es verificable a mano: una TNA de 12% con capitalización mensual equivale a 1% mensual, de modo que el interés del primer mes es S/ 240.00 (24,000 x 1%), el saldo pasa a S/ 24,240.00 y luego a S/ 24,482.40, que son los valores que produce el motor. La primera cuota regular es S/ 522.77.
+El caso 3 (S/ 24,000, TNA 12% con capitalización mensual, 48 meses, gracia total de 2 meses, balón 20%) no tiene cifras puntuales en el material disponible; su referencia es cualitativa: el saldo debe crecer durante la gracia por capitalización de intereses y el crédito debe terminar en cero. El C# cumple ambas condiciones. Además, el resultado es verificable a mano: una TNA de 12% con capitalización mensual equivale a 1% mensual, de modo que el interés del primer mes es S/ 240.00 (24,000 x 1%), el saldo pasa a S/ 24,240.00 y luego a S/ 24,482.40, que son los valores que produce el motor. La primera cuota regular es S/ 533.28, calculada sobre el saldo capitalizado de S/ 24,482.40 (desviación D5, sección 1.5); el motor original la calculaba sobre S/ 24,000 y daba S/ 522.77.
 
 </div>
 
@@ -153,6 +153,7 @@ La equivalencia del redondeo entre `Math.Round` de .NET y `round()` de Python se
 | D2 | Se normaliza el cero negativo. | Python emitió `-0.0` como monto de cuota balón en uno de los escenarios; en JSON se vería como `-0`. |
 | D3 | Las tasas se expresan como fracciones (0.085), no como porcentajes (8.5). | Coincide con el contrato de API. La prueba de paridad parte del mismo número que usa Python. |
 | D4 | El motor no limita el plazo (Python lo limitaba a 96 meses por ser de vehículos); lanza `ArgumentException` ante entradas inconsistentes. | Los topes del producto (60 a 360 meses) los valida el endpoint, no el motor. |
+| D5 | Tras una **gracia total**, la cuota regular se calcula sobre el saldo con los intereses capitalizados y no sobre el monto financiado. | Python calculaba la cuota sobre el monto financiado, así que los intereses capitalizados quedaban sin pagar hasta la última cuota. En el ejemplo del Landing (S/ 280,000, 15% de cuota inicial, TEA 8.85%, 20 años, bono, gracia total de 3 meses) mostraba una cuota de S/ 1,918.11 y cobraba S/ 27,056.64 en el mes 240; ahora la cuota es S/ 1,959.21 las 237 cuotas. Con gracia parcial o sin gracia el saldo es el monto financiado, por lo que nada cambia. |
 
 **Observations inherited from AutoFinance Pro (decisions pending for the team)**
 
@@ -211,7 +212,7 @@ Period  Payment date  Installment    Interest  Amortization       Balance
 - No se realizaron pruebas de rendimiento, carga ni seguridad.
 - Los datos de paridad se generaron con Python 3.11.7. Desde Python 3.12 la función `sum()` usa suma compensada para números decimales, así que regenerar los datos con una versión más reciente podría cambiar los últimos dígitos internos de los totales (no los valores redondeados, salvo casos extremos).
 
-**Conclusion.** El port cumple el criterio de aceptación de SP02: con la misma entrada produce los mismos resultados que el motor original en los 48 escenarios y en los casos documentados del informe (diferencia máxima 0.00), las reglas de redondeo están documentadas y existe un prototipo ejecutable. Esto valida la **equivalencia con AutoFinance Pro**, no la exactitud del producto frente al mercado hipotecario.
+**Conclusion.** El port cumple el criterio de aceptación de SP02: con la misma entrada produce los mismos resultados que el motor original en los 48 escenarios (38 contra el código original sin cambios y 10, los de gracia total, contra el original con la corrección D5) y en los casos documentados del informe (diferencia máxima 0.00), las reglas de redondeo están documentadas y existe un prototipo ejecutable. Esto valida la **equivalencia con AutoFinance Pro**, no la exactitud del producto frente al mercado hipotecario.
 
 ---
 
@@ -236,7 +237,7 @@ Period  Payment date  Installment    Interest  Amortization       Balance
 | Proyecto | Clase de prueba | Pruebas | Tipo | Qué verifica |
 |:--|:--|--:|:--|:--|
 | `HipoSim.FinancialEngine.Tests` | `RateConverterTests` | 6 | Unitaria | Conversión TNA a TEA a tasa mensual y errores de entrada. |
-| | `AmortizationCalculatorTests` | 18 | Unitaria | Los 3 casos del informe, tasa cero, fechas de fin de mes, seguros, marca de balón y entradas inconsistentes. |
+| | `AmortizationCalculatorTests` | 21 | Unitaria | Los 3 casos del informe, tasa cero, fechas de fin de mes, seguros, marca de balón, entradas inconsistentes y la cuota recalculada tras la gracia total (D5) y sin cambios tras la parcial. |
 | | `FinancialIndicatorsTests` | 9 | Unitaria | VAN, TIR (incluida la bisección, la TIR negativa y la derivada cero) y propiedades del TCEA. |
 | | `BenefitsEngineTests` | 11 | Unitaria | Tramos del bono en sus límites, fuera de rango, sin solicitarlo y tramos personalizados. |
 | | `FinancialEngineTests` | 13 | Unitaria | Flujo completo del motor, monto financiado, gracia, tasa nominal y validaciones. |
@@ -244,14 +245,15 @@ Period  Payment date  Installment    Interest  Amortization       Balance
 | `HipoSim.Simulations.Tests` | `SimulationRequestValidatorTests` | 32 | Unitaria | Reglas de validación de TS06: campos obligatorios, 10% de cuota inicial, tasa como fracción, plazo y gracia. |
 | | `SimulationServiceTests` | 10 | Unitaria | Servicio con repositorio y reloj simulados: bono, supuestos, fecha de inicio en Lima, saldo inicial de cada fila, persistencia. |
 | | `SimulationsEndpointTests` | 12 | Integración | `POST /api/simulations` con el controlador real: 200, 400, JSON inválido, cuerpo vacío, comprador autenticado. |
+| | `GracePeriodEndpointTests` | 17 | Integración | US03 con el controlador real: gracia parcial y total de 3 meses (solo intereses, o sin pagos con capitalización, y cuota recalculada desde el mes 4), cuotas iguales sin cuota final enorme, costo creciente, TCEA igual a la tasa, seguros durante la gracia, borde de 239 meses, 5 casos de gracia inconsistente (400) y la gracia guardada en la simulación. Los valores esperados salen de fórmulas escritas en la prueba. |
 | | `ContractConformanceTests` | 9 | Contrato | Los ejemplos del YAML se envían al endpoint y las respuestas deben coincidir con lo documentado, incluidos el PDF, el 403 y el 404 del reporte. |
 | | `SimulationReportContentBuilderTests` | 16 | Unitaria | TS03: texto del reporte (formatos, bono, gracia, seguros, hora de Lima, signo del VAN). |
 | | `SimulationReportServiceTests` | 6 | Unitaria | TS03: reglas de acceso (200, 403, 404) con un generador falso. |
 | | `SimulationReportEndpointTests` | 9 | Integración | TS03: `GET /api/simulations/{id}/report` con el controlador real y el generador PDF real. |
 | | `QuestPdfSimulationReportGeneratorTests` | 5 | Integración | TS03: PDF bien formado, número de páginas y renderizado repetible. |
-| **Total** | | **205** | | |
+| **Total** | | **227** | | |
 
-La suite `HipoSim.Api.Tests` (56 pruebas, de las cuales 2 son de TS03) no está contada en esta tabla porque cubre la API completa y no solo el motor.
+La suite `HipoSim.Api.Tests` (76 pruebas) no está contada en esta tabla porque cubre la API completa y no solo el motor.
 
 ## **2.3. Execution Results**
 
@@ -264,11 +266,11 @@ dotnet test --collect:"XPlat Code Coverage" --logger "trx"
 
 | Proyecto | Pruebas | Correctas | Con error | Omitidas | Duración |
 |:--|--:|--:|--:|--:|--:|
-| `HipoSim.FinancialEngine.Tests` | 106 | 106 | 0 | 0 | 244 ms |
-| `HipoSim.Simulations.Tests` | 99 | 99 | 0 | 0 | 9 s |
-| **Total** | **205** | **205** | **0** | **0** | |
+| `HipoSim.FinancialEngine.Tests` | 109 | 109 | 0 | 0 | 1 s |
+| `HipoSim.Simulations.Tests` | 118 | 118 | 0 | 0 | 31 s |
+| **Total** | **227** | **227** | **0** | **0** | |
 
-`HipoSim.Api.Tests` (56 pruebas) también pasó completa en la misma ejecución. La duración de `HipoSim.Simulations.Tests` subió porque ahora renderiza PDF reales.
+`HipoSim.Api.Tests` (76 pruebas) también pasó completa en la misma ejecución. La duración de `HipoSim.Simulations.Tests` subió porque ahora renderiza PDF reales.
 
 <div style="text-align: justify; line-height: 1.6;">
 
@@ -314,6 +316,10 @@ Para comprobar que las pruebas detectan errores y no solo pasan, se introdujeron
 | La regla de cuota inicial pasa de 10% a 5% | `HipoSim.Simulations.Tests` (56 pruebas en ese momento) | 2 fallan |
 | Se renombra la propiedad `Irr` de la respuesta en el código | `HipoSim.Simulations.Tests` | Error de compilación en las pruebas |
 | Solo cambia el nombre JSON de `irr` a `irrAnnual` (el código compila igual) | `HipoSim.Simulations.Tests` (56 pruebas en ese momento) | 3 fallan (contrato) |
+| Tras la gracia total, la cuota vuelve a calcularse sobre el monto financiado (comportamiento anterior a D5) | Paridad y `AmortizationCalculatorTests` (70 pruebas) | 13 fallan: 10 escenarios de gracia total, el resumen de paridad y las 2 pruebas nuevas de gracia total |
+| La misma reversión de D5 | `GracePeriodEndpointTests` (17 pruebas) | 3 fallan |
+| La gracia parcial deja de pagar el interés (la cuota de esos meses pasa a 0) | `GracePeriodEndpointTests` (17 pruebas) | 4 fallan |
+| La gracia total deja de capitalizar el interés | `GracePeriodEndpointTests` (17 pruebas) | 3 fallan |
 | TS03: se elimina la regla del 403 (cualquiera descarga una simulación con comprador) | Solución completa | 6 fallan |
 | TS03: quien no inició sesión se trata como dueño de la simulación | Solución completa | 3 fallan |
 | TS03: las filas de gracia dejan de marcarse en el contenido del reporte | Solución completa | 3 fallan |
@@ -330,6 +336,8 @@ Para comprobar que las pruebas detectan errores y no solo pasan, se introdujeron
 | TS06, escenario 3: datos incompletos (400 con lista de campos) | `Post_WhenRequiredFieldsAreMissing_Returns400ListingEveryField`, `Post_WhenOnlySomeFieldsAreMissing_ListsOnlyThose`. |
 | US05, escenario 1: bono aplicado | `BenefitsEngineTests`, `FinancialEngineTests`, `SimulationServiceTests`, ejemplo `withBonus` del contrato. |
 | US05, escenario 2: vivienda fuera de rango | `BenefitsEngineTests`, `Post_WhenPropertyIsOutsideTheBonusRange_Returns200WithoutTheBonus`, ejemplo `outOfRange` del contrato. |
+| US03, escenario 1: gracia parcial de 3 meses (solo intereses y cuota recalculada desde el mes 4) | `GracePeriodEndpointTests.Post_WhenPartialGraceOfThreeMonths_...`, `BuildSchedule_WhenPartialGrace_...` en `AmortizationCalculatorTests`, ejemplo `partialGrace` del contrato. |
+| US03, escenario 2: gracia total de 3 meses (sin pagos e intereses capitalizados) | `GracePeriodEndpointTests.Post_WhenTotalGraceOfThreeMonths_...` y `..._EveryRegularInstallmentIsEqual...`, `BuildSchedule_WhenTotalGrace_...` (desviación D5), ejemplo `totalGrace` del contrato. |
 | US04, escenario 1: TCEA con seguros | `FinancialIndicatorsTests`, `SimulationServiceTests`, `Post_WhenTheConfigurationDefinesInsurance_TheAssumptionsAreEchoedAndUsed`. |
 | US02, escenario 1: cronograma con saldo inicial, amortización, interés y saldo final (parte de API) | `CalculateAsync_WhenCalculated_EachRowOpensWithThePreviousClosingBalance`, `ContractConformanceTests` (campo `openingBalance`). |
 | TS03, reporte descargado (200, PDF) | `SimulationReportEndpointTests` (anónima, dueño, con gracia y seguros), `QuestPdfSimulationReportGeneratorTests`, `ContractConformanceTests.GetReport_WhenDownloadingAPdf_...`, `Simulation_report_is_read_back_from_the_database_...` (`HipoSim.Api.Tests`). |

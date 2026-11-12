@@ -6,7 +6,13 @@ with the AUTOFINANCE_PRO_PATH environment variable or as the first argument:
 
 Rates are written both as the percentage typed in Python ("ratePercent") and as the exact fraction the Python
 engine derives from it ("annualRate" = percent / 100), so the C# side starts from the same double.
+
+Deviation D5: the original engine calculates the regular installment on the financed amount even after a total grace,
+so the interest capitalized during the grace is only repaid by the last installment. HipoSim calculates it on the
+balance when the grace ends. This script applies that one-line change to the original function at run time (the
+AutoFinance Pro project is not modified), so every other scenario still comes from the original code.
 """
+import inspect
 import json
 import os
 import sys
@@ -26,7 +32,17 @@ os.chdir(PYTHON_PROJECT)
 sys.path.insert(0, str(PYTHON_PROJECT))
 
 from app.schemas.simulacion import SimulacionInput  # noqa: E402
+from app.services import amortizacion_service, credito_service  # noqa: E402
 from app.services.credito_service import CreditoService  # noqa: E402
+
+# D5 (see the module docstring): installment on the balance after the grace, not on the financed amount.
+_ORIGINAL_LINE = "capital_amortizable = monto_financiado * (1 - b)"
+_PATCHED_LINE = "capital_amortizable = saldo * (1 - b)"
+_source = inspect.getsource(amortizacion_service.generar_cronograma)
+if _ORIGINAL_LINE not in _source:
+    sys.exit("The original generar_cronograma changed: review deviation D5 before regenerating.")
+exec(_source.replace(_ORIGINAL_LINE, _PATCHED_LINE), amortizacion_service.__dict__)
+credito_service.generar_cronograma = amortizacion_service.generar_cronograma
 
 RATE_TYPES = {"Efectiva": "Effective", "Nominal": "Nominal"}
 GRACE_TYPES = {"Ninguno": "None", "Total": "Total", "Parcial": "Partial"}
