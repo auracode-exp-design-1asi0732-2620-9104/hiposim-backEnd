@@ -61,3 +61,43 @@ Característica: Simulación de crédito hipotecario
     Cuando el Comprador solicita aplicar el bono
     Entonces el sistema informa que la vivienda no califica
     Y no modifica el monto a financiar de 360000
+
+  @US03-E1 @implemented
+  Escenario: Periodo de gracia parcial
+    Dado que el Comprador ingresa un valor de vivienda de 280000, una cuota inicial de 42000, una tasa efectiva anual de 0.0885 y un plazo de 240 meses
+    Y que solicita el bono, por lo que el monto a financiar es 219800
+    Y que elige un periodo de gracia parcial de 3 meses
+    Cuando solicita la simulación
+    Entonces el sistema responde con código 200
+    Y en los 3 primeros meses el cronograma muestra solo el pago del interés, sin amortización y con el saldo sin cambios
+    Y esos 3 meses quedan marcados como periodo de gracia
+    Y desde el mes 4 la cuota se recalcula sobre los 237 meses restantes
+    Y el saldo final del mes 240 es 0
+
+  @US03-E2 @implemented
+  Escenario: Periodo de gracia total
+    Dado que el Comprador ingresa un valor de vivienda de 280000, una cuota inicial de 42000, una tasa efectiva anual de 0.0885 y un plazo de 240 meses
+    Y que solicita el bono, por lo que el monto a financiar es 219800
+    Y que elige un periodo de gracia total de 3 meses
+    Cuando solicita la simulación
+    Entonces el sistema responde con código 200
+    Y en los 3 primeros meses el cronograma no muestra pagos y el interés se suma al saldo
+    Y esos 3 meses quedan marcados como periodo de gracia
+    Y desde el mes 4 la cuota se calcula sobre el saldo con los intereses capitalizados
+    Y todas las cuotas regulares son iguales y la última no es una cuota excesiva
+    Y el saldo final del mes 240 es 0
+
+  @US03 @implemented
+  Escenario: Periodo de gracia inconsistente
+    Dado que el Comprador elige un tipo de gracia sin meses, meses de gracia sin tipo, un tipo desconocido, meses negativos o una gracia igual al plazo
+    Cuando solicita la simulación
+    Entonces el sistema responde con código 400
+    Y informa el campo con error, gracePeriodMonths o graceType
+    Y no registra la simulación
+
+  @US03 @implemented
+  Escenario: Gracia guardada con la simulación
+    Dado que el Comprador solicita una simulación con gracia parcial o total de 3 meses
+    Cuando el sistema la registra
+    Entonces la simulación guardada conserva el tipo y los meses de gracia
+    Y conserva los 3 meses marcados en el cronograma
