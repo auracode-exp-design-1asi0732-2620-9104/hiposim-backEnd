@@ -11,6 +11,7 @@ public sealed class HipoSimDbContext(DbContextOptions<HipoSimDbContext> options)
     public DbSet<LeadNote> LeadNotes => Set<LeadNote>();
     public DbSet<LeadStatusChange> LeadStatusChanges => Set<LeadStatusChange>();
     public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
+    public DbSet<UsageEvent> UsageEvents => Set<UsageEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -33,6 +34,23 @@ public sealed class HipoSimDbContext(DbContextOptions<HipoSimDbContext> options)
             entity.Property(m => m.Message).HasColumnName("message").HasMaxLength(2000).IsRequired();
             entity.Property(m => m.CreatedAt).HasColumnName("created_at").IsRequired();
             entity.HasIndex(m => m.CreatedAt).HasDatabaseName("ix_contact_messages_created_at");
+        });
+
+        modelBuilder.Entity<UsageEvent>(entity =>
+        {
+            entity.ToTable("usage_events");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.SessionId).HasColumnName("session_id").HasMaxLength(64).IsRequired();
+            entity.Property(e => e.Source).HasColumnName("source").HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(40).IsRequired();
+            entity.Property(e => e.Properties).HasColumnName("properties").HasColumnType("jsonb");
+            entity.Property(e => e.OccurredAt).HasColumnName("occurred_at").IsRequired();
+            entity.HasIndex(e => e.OccurredAt).HasDatabaseName("ix_usage_events_occurred_at");
+            entity.HasIndex(e => new { e.Name, e.OccurredAt }).HasDatabaseName("ix_usage_events_name_occurred_at");
+            entity.HasIndex(e => e.SessionId).HasDatabaseName("ix_usage_events_session_id");
+            entity.ToTable(table => table.HasCheckConstraint(
+                "ck_usage_events_source", "source IN ('landing', 'mobile', 'web')"));
         });
 
         modelBuilder.Entity<AppUser>(entity =>
