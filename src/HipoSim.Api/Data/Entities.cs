@@ -31,6 +31,17 @@ public sealed class ContactMessage
     public DateTimeOffset CreatedAt { get; set; }
 }
 
+/// <summary>Anonymous usage event for the experiments (TS09). No personal data.</summary>
+public sealed class UsageEvent
+{
+    public Guid Id { get; set; }
+    public string SessionId { get; set; } = string.Empty;
+    public string Source { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Properties { get; set; }
+    public DateTimeOffset OccurredAt { get; set; }
+}
+
 public sealed class StoredSimulation
 {
     public Guid Id { get; set; }

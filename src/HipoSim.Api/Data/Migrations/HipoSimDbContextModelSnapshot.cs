@@ -314,6 +314,56 @@ namespace HipoSim.Api.Data.Migrations
                     b.ToTable("simulations", (string)null);
                 });
 
+            modelBuilder.Entity("HipoSim.Api.Data.UsageEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<string>("Properties")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("properties");
+
+                    b.Property<string>("SessionId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("session_id");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("source");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurredAt")
+                        .HasDatabaseName("ix_usage_events_occurred_at");
+
+                    b.HasIndex("SessionId")
+                        .HasDatabaseName("ix_usage_events_session_id");
+
+                    b.HasIndex("Name", "OccurredAt")
+                        .HasDatabaseName("ix_usage_events_name_occurred_at");
+
+                    b.ToTable("usage_events", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_usage_events_source", "source IN ('landing', 'mobile', 'web')");
+                        });
+                });
+
             modelBuilder.Entity("HipoSim.Api.Data.AppUser", b =>
                 {
                     b.HasOne("HipoSim.Api.Data.Agency", null)
