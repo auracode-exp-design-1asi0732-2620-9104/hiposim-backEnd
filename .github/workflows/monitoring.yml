@@ -1,0 +1,75 @@
+name: Monitoring
+
+# DO4 (chapter VII, 7.4): every 10 minutes it asks the API for /health and the Landing Page for its home page.
+# If one of them does not answer correctly, the run fails and GitHub notifies the people who watch the repository.
+# A side effect: the free plan of Render puts the API to sleep after 15 minutes without requests, and this keeps it awake.
+# Scheduled runs only happen on the default branch, so this file has to be on main.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: monitoring
+  cancel-in-progress: false
+
+env:
+  API_HEALTH_URL: https://hiposim-api.onrender.com/health
+  LANDING_URL: https://auracode-exp-design-1asi0732-2620-9104.github.io/hiposim-LandingPage/
+
+jobs:
+  check:
+    name: Check the API and the Landing Page
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: API health
+        id: api
+        run: |
+          # The first request after a sleep can take about a minute on the free plan, so it waits and retries.
+          result=$(curl -sS -o body.txt -w "%{http_code} %{time_total}" \
+            --max-time 120 --retry 3 --retry-delay 15 --retry-all-errors "$API_HEALTH_URL" || echo "000 0")
+          code=${result%% *}
+          seconds=${result##* }
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "seconds=$seconds" >> "$GITHUB_OUTPUT"
+          if [ "$code" = "200" ] && grep -q "Healthy" body.txt; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Landing Page
+        id: landing
+        run: |
+          result=$(curl -sS -o /dev/null -w "%{http_code} %{time_total}" \
+            --max-time 60 --retry 2 --retry-delay 10 --retry-all-errors "$LANDING_URL" || echo "000 0")
+          code=${result%% *}
+          seconds=${result##* }
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "seconds=$seconds" >> "$GITHUB_OUTPUT"
+          if [ "$code" = "200" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "| Service | Result | HTTP | Seconds |"
+            echo "|---|---|---|---|"
+            echo "| API /health | ${{ steps.api.outputs.ok == 'true' && 'up' || 'DOWN' }} | ${{ steps.api.outputs.code }} | ${{ steps.api.outputs.seconds }} |"
+            echo "| Landing Page | ${{ steps.landing.outputs.ok == 'true' && 'up' || 'DOWN' }} | ${{ steps.landing.outputs.code }} | ${{ steps.landing.outputs.seconds }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail the run if something is down
+        if: steps.api.outputs.ok != 'true' || steps.landing.outputs.ok != 'true'
+        run: |
+          echo "::error::A monitored service did not answer correctly. API: ${{ steps.api.outputs.code }}. Landing: ${{ steps.landing.outputs.code }}."
+          exit 1
