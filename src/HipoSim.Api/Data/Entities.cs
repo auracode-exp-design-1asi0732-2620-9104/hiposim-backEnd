@@ -42,6 +42,16 @@ public sealed class UsageEvent
     public DateTimeOffset OccurredAt { get; set; }
 }
 
+/// <summary>A simulation that a buyer saved under a name (US06).</summary>
+public sealed class Scenario
+{
+    public Guid Id { get; set; }
+    public Guid BuyerId { get; set; }
+    public Guid SimulationId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
 public sealed class StoredSimulation
 {
     public Guid Id { get; set; }

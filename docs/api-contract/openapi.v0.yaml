@@ -53,6 +53,8 @@ tags:
     description: Real estate agencies that receive leads.
   - name: Contact
     description: Contact form of the Landing Page.
+  - name: Scenarios
+    description: Simulations saved by the buyer (US06).
   - name: Events
     description: Anonymous usage events for the experiments (TS09).
 paths:
@@ -422,6 +424,60 @@ paths:
           $ref: "#/components/responses/ValidationError"
         "429":
           description: Too many messages from the same address. Try again in a minute.
+  /api/scenarios:
+    post:
+      tags: [Scenarios]
+      operationId: createScenario
+      summary: Save one of the buyer's simulations under a name (US06)
+      description: |
+        Only for buyers. The simulation must have been calculated with the buyer's token, so it belongs to the buyer;
+        otherwise the response is 404. The response carries the figures of the simulation, so the apps can list and
+        compare scenarios (US07) without calling the simulation endpoint again.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateScenarioRequest"
+            example:
+              name: Plazo 20 años con bono
+              simulationId: 3f9b8c2e-6a1d-4c58-9e0f-7d2b5a1c4e90
+      responses:
+        "201":
+          description: The scenario was saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScenarioResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          description: Missing or invalid token.
+        "403":
+          description: The token does not belong to a buyer.
+        "404":
+          description: The simulation does not exist or belongs to another buyer.
+    get:
+      tags: [Scenarios]
+      operationId: listScenarios
+      summary: List the buyer's saved scenarios, newest first (US06)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: The buyer's scenarios. Empty when there are none.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScenarioResponse"
+        "401":
+          description: Missing or invalid token.
+        "403":
+          description: The token does not belong to a buyer.
   /api/events:
     post:
       tags: [Events]
@@ -506,6 +562,41 @@ components:
           type: string
           minLength: 1
           maxLength: 2000
+    CreateScenarioRequest:
+      type: object
+      required: [name, simulationId]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+        simulationId:
+          type: string
+          format: uuid
+    ScenarioResponse:
+      type: object
+      required: [id, name, simulationId, createdAt]
+      description: A figure is null when the stored simulation does not carry it.
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        simulationId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        propertyPrice: { type: number, nullable: true }
+        downPayment: { type: number, nullable: true }
+        annualEffectiveRate: { type: number, nullable: true }
+        termInMonths: { type: integer, nullable: true }
+        gracePeriodMonths: { type: integer, nullable: true }
+        graceType: { type: string, nullable: true, enum: [none, total, partial, null] }
+        applyGoodPayerBonus: { type: boolean, nullable: true }
+        goodPayerBonus: { type: number, nullable: true }
+        financedAmount: { type: number, nullable: true }
+        monthlyInstallment: { type: number, nullable: true }
+        totalPaid: { type: number, nullable: true }
+        totalInterest: { type: number, nullable: true }
+        tcea: { type: number, nullable: true }
+        npv: { type: number, nullable: true }
+        irr: { type: number, nullable: true }
     CreateUsageEventRequest:
       type: object
       required: [sessionId, source, name]

@@ -12,6 +12,7 @@ public sealed class HipoSimDbContext(DbContextOptions<HipoSimDbContext> options)
     public DbSet<LeadStatusChange> LeadStatusChanges => Set<LeadStatusChange>();
     public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
     public DbSet<UsageEvent> UsageEvents => Set<UsageEvent>();
+    public DbSet<Scenario> Scenarios => Set<Scenario>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -51,6 +52,21 @@ public sealed class HipoSimDbContext(DbContextOptions<HipoSimDbContext> options)
             entity.HasIndex(e => e.SessionId).HasDatabaseName("ix_usage_events_session_id");
             entity.ToTable(table => table.HasCheckConstraint(
                 "ck_usage_events_source", "source IN ('landing', 'mobile', 'web')"));
+        });
+
+        modelBuilder.Entity<Scenario>(entity =>
+        {
+            entity.ToTable("scenarios");
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.Id).HasColumnName("id");
+            entity.Property(s => s.BuyerId).HasColumnName("buyer_id").IsRequired();
+            entity.Property(s => s.SimulationId).HasColumnName("simulation_id").IsRequired();
+            entity.Property(s => s.Name).HasColumnName("name").HasMaxLength(60).IsRequired();
+            entity.Property(s => s.CreatedAt).HasColumnName("created_at").IsRequired();
+            entity.HasOne<AppUser>().WithMany().HasForeignKey(s => s.BuyerId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<StoredSimulation>().WithMany().HasForeignKey(s => s.SimulationId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(s => new { s.BuyerId, s.CreatedAt }).HasDatabaseName("ix_scenarios_buyer_id_created_at");
+            entity.HasIndex(s => s.SimulationId).HasDatabaseName("ix_scenarios_simulation_id");
         });
 
         modelBuilder.Entity<AppUser>(entity =>
