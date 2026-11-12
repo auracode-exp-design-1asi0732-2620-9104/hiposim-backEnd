@@ -229,6 +229,7 @@ Period  Payment date  Installment    Interest  Amortization       Balance
 | Pruebas de integración HTTP | Microsoft.AspNetCore.TestHost 9.0.20 (servidor en memoria con el controlador real) |
 | Prueba de contrato | YamlDotNet 18.1.0 (lee `docs/api-contract/openapi.v0.yaml`) |
 | Cobertura | coverlet.collector 6.0.2 |
+| Generación de PDF (TS03) | QuestPDF 2026.9.1, licencia Community, detrás de `ISimulationReportGenerator` (ver `ts03-simulation-report.md`). |
 | Motor de referencia | Python 3.11.7 (AutoFinance Pro) |
 
 ## **2.2. Test Suites**
@@ -245,8 +246,14 @@ Period  Payment date  Installment    Interest  Amortization       Balance
 | | `SimulationServiceTests` | 10 | Unitaria | Servicio con repositorio y reloj simulados: bono, supuestos, fecha de inicio en Lima, saldo inicial de cada fila, persistencia. |
 | | `SimulationsEndpointTests` | 12 | Integración | `POST /api/simulations` con el controlador real: 200, 400, JSON inválido, cuerpo vacío, comprador autenticado. |
 | | `GracePeriodEndpointTests` | 17 | Integración | US03 con el controlador real: gracia parcial y total de 3 meses (solo intereses, o sin pagos con capitalización, y cuota recalculada desde el mes 4), cuotas iguales sin cuota final enorme, costo creciente, TCEA igual a la tasa, seguros durante la gracia, borde de 239 meses, 5 casos de gracia inconsistente (400) y la gracia guardada en la simulación. Los valores esperados salen de fórmulas escritas en la prueba. |
-| | `ContractConformanceTests` | 8 | Contrato | Los ejemplos del YAML (`withBonus`, `partialGrace`, `totalGrace` y `outOfRange`) se envían al endpoint y las respuestas deben coincidir con lo documentado. |
-| **Total** | | **188** | | |
+| | `ContractConformanceTests` | 9 | Contrato | Los ejemplos del YAML se envían al endpoint y las respuestas deben coincidir con lo documentado, incluidos el PDF, el 403 y el 404 del reporte. |
+| | `SimulationReportContentBuilderTests` | 16 | Unitaria | TS03: texto del reporte (formatos, bono, gracia, seguros, hora de Lima, signo del VAN). |
+| | `SimulationReportServiceTests` | 6 | Unitaria | TS03: reglas de acceso (200, 403, 404) con un generador falso. |
+| | `SimulationReportEndpointTests` | 9 | Integración | TS03: `GET /api/simulations/{id}/report` con el controlador real y el generador PDF real. |
+| | `QuestPdfSimulationReportGeneratorTests` | 5 | Integración | TS03: PDF bien formado, número de páginas y renderizado repetible. |
+| **Total** | | **227** | | |
+
+La suite `HipoSim.Api.Tests` (76 pruebas) no está contada en esta tabla porque cubre la API completa y no solo el motor.
 
 ## **2.3. Execution Results**
 
@@ -259,9 +266,11 @@ dotnet test --collect:"XPlat Code Coverage" --logger "trx"
 
 | Proyecto | Pruebas | Correctas | Con error | Omitidas | Duración |
 |:--|--:|--:|--:|--:|--:|
-| `HipoSim.FinancialEngine.Tests` | 109 | 109 | 0 | 0 | 214 ms |
-| `HipoSim.Simulations.Tests` | 79 | 79 | 0 | 0 | 1 s |
-| **Total** | **188** | **188** | **0** | **0** | |
+| `HipoSim.FinancialEngine.Tests` | 109 | 109 | 0 | 0 | 1 s |
+| `HipoSim.Simulations.Tests` | 118 | 118 | 0 | 0 | 31 s |
+| **Total** | **227** | **227** | **0** | **0** | |
+
+`HipoSim.Api.Tests` (76 pruebas) también pasó completa en la misma ejecución. La duración de `HipoSim.Simulations.Tests` subió porque ahora renderiza PDF reales.
 
 <div style="text-align: justify; line-height: 1.6;">
 
@@ -290,6 +299,8 @@ Las únicas líneas sin cubrir son tres: el `return` final de la bisección de l
 
 </div>
 
+*Nota: las cifras de cobertura de esta sección se midieron antes de TS03 y no se recalcularon con el código del reporte.*
+
 ## **2.5. Sanity Checks by Mutation**
 
 <div style="text-align: justify; line-height: 1.6;">
@@ -309,6 +320,11 @@ Para comprobar que las pruebas detectan errores y no solo pasan, se introdujeron
 | La misma reversión de D5 | `GracePeriodEndpointTests` (17 pruebas) | 3 fallan |
 | La gracia parcial deja de pagar el interés (la cuota de esos meses pasa a 0) | `GracePeriodEndpointTests` (17 pruebas) | 4 fallan |
 | La gracia total deja de capitalizar el interés | `GracePeriodEndpointTests` (17 pruebas) | 3 fallan |
+| TS03: se elimina la regla del 403 (cualquiera descarga una simulación con comprador) | Solución completa | 6 fallan |
+| TS03: quien no inició sesión se trata como dueño de la simulación | Solución completa | 3 fallan |
+| TS03: las filas de gracia dejan de marcarse en el contenido del reporte | Solución completa | 3 fallan |
+| TS03: el signo negativo del VAN vuelve a ir después de la moneda (`S/ -17,712.02`) | Solución completa | 1 falla |
+| TS03: el 404 se responde con 403 | Solución completa | 3 fallan |
 
 ## **2.6. Traceability**
 
@@ -324,6 +340,9 @@ Para comprobar que las pruebas detectan errores y no solo pasan, se introdujeron
 | US03, escenario 2: gracia total de 3 meses (sin pagos e intereses capitalizados) | `GracePeriodEndpointTests.Post_WhenTotalGraceOfThreeMonths_...` y `..._EveryRegularInstallmentIsEqual...`, `BuildSchedule_WhenTotalGrace_...` (desviación D5), ejemplo `totalGrace` del contrato. |
 | US04, escenario 1: TCEA con seguros | `FinancialIndicatorsTests`, `SimulationServiceTests`, `Post_WhenTheConfigurationDefinesInsurance_TheAssumptionsAreEchoedAndUsed`. |
 | US02, escenario 1: cronograma con saldo inicial, amortización, interés y saldo final (parte de API) | `CalculateAsync_WhenCalculated_EachRowOpensWithThePreviousClosingBalance`, `ContractConformanceTests` (campo `openingBalance`). |
+| TS03, reporte descargado (200, PDF) | `SimulationReportEndpointTests` (anónima, dueño, con gracia y seguros), `QuestPdfSimulationReportGeneratorTests`, `ContractConformanceTests.GetReport_WhenDownloadingAPdf_...`, `Simulation_report_is_read_back_from_the_database_...` (`HipoSim.Api.Tests`). |
+| TS03, simulación inexistente (404) | `GetReport_WhenTheIdDoesNotExist_Returns404AsProblemJson`, `GetReport_WhenTheIdIsNotAGuid_Returns404`, `SimulationReportServiceTests`. |
+| TS03, simulación de otro usuario (403) | `GetReport_WhenAnotherBuyerAsks_Returns403AsProblemJson`, `GetReport_WhenNobodyIsSignedInAndTheSimulationBelongsToABuyer_Returns403`, `SimulationReportServiceTests`. Las reglas de acceso son una suposición pendiente de confirmar (ver `ts03-simulation-report.md`). |
 
 <div style="text-align: justify; line-height: 1.6;">
 
@@ -336,6 +355,9 @@ Las pruebas cubren la parte de motor y API de US04 y US05. La pantalla del móvi
 ```bash
 # Run all tests
 dotnet test
+
+# Run only the TS03 report tests
+dotnet test --filter "FullyQualifiedName~SimulationReport|FullyQualifiedName~QuestPdf"
 
 # Run only the parity tests and print the observed maximum difference
 dotnet test tests/HipoSim.FinancialEngine.Tests --filter "FullyQualifiedName~ReportsTheMaximumObservedDifference" --logger "console;verbosity=detailed"
@@ -357,4 +379,6 @@ La salida de la prueba de paridad incluye una línea de la forma `PARITY cases=4
 | Ejecución en integración continua | *Pendiente: no hay flujo de CI configurado para el backend.* |
 | Captura de pantalla de la ejecución de las pruebas | *Pendiente.* |
 | Colección Postman del endpoint de simulación | *Pendiente (Services Documentation Evidence).* |
+| Descarga del PDF en la imagen Docker de Render (Linux) | *Pendiente: el motor de Docker no estaba disponible al implementar TS03.* |
+| Confirmación de la biblioteca de PDF con la investigación SP01 y de las reglas de acceso del 403 | *Pendiente con el equipo (ver `ts03-simulation-report.md`).* |
 | Pruebas con persistencia real en PostgreSQL | *Pendiente: depende de la implementación del repositorio en la API.* |

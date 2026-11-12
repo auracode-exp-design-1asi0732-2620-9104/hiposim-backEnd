@@ -23,6 +23,9 @@ internal sealed class RecordingRepository : ISimulationRepository
         Records.Add(record);
         return Task.CompletedTask;
     }
+
+    public Task<SimulationRecord?> FindAsync(Guid id, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Records.FirstOrDefault(record => record.Id == id));
 }
 
 /// <summary>The real controller, service and engines hosted in memory with a recording repository.</summary>
@@ -76,6 +79,17 @@ internal sealed class SimulationsTestHost : IAsyncDisposable
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json"),
         };
+        if (buyerId is not null)
+        {
+            request.Headers.Add(BuyerHeader, buyerId);
+        }
+
+        return await Client.SendAsync(request);
+    }
+
+    public async Task<HttpResponseMessage> GetAsync(string path, string? buyerId = null)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
         if (buyerId is not null)
         {
             request.Headers.Add(BuyerHeader, buyerId);
