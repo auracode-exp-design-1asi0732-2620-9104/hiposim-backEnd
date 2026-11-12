@@ -53,6 +53,10 @@ tags:
     description: Real estate agencies that receive leads.
   - name: Contact
     description: Contact form of the Landing Page.
+  - name: Scenarios
+    description: Simulations saved by the buyer (US06).
+  - name: Events
+    description: Anonymous usage events for the experiments (TS09).
 paths:
   /health:
     get:
@@ -204,6 +208,28 @@ paths:
                   graceType: none
                   applyGoodPayerBonus: true
                   startDate: "2026-10-01"
+              partialGrace:
+                summary: Partial grace of 3 months at the reference rate (TEA 8.85%), only interest is paid (US03)
+                value:
+                  propertyPrice: 280000
+                  downPayment: 42000
+                  annualEffectiveRate: 0.0885
+                  termInMonths: 240
+                  gracePeriodMonths: 3
+                  graceType: partial
+                  applyGoodPayerBonus: true
+                  startDate: "2026-10-01"
+              totalGrace:
+                summary: Total grace of 3 months at the reference rate (TEA 8.85%), the interest is capitalized (US03)
+                value:
+                  propertyPrice: 280000
+                  downPayment: 42000
+                  annualEffectiveRate: 0.0885
+                  termInMonths: 240
+                  gracePeriodMonths: 3
+                  graceType: total
+                  applyGoodPayerBonus: true
+                  startDate: "2026-10-01"
               outOfRange:
                 summary: Property outside the bonus range (S/ 450,000)
                 value:
@@ -275,6 +301,160 @@ paths:
                         propertyInsurance: 0
                         creditLifeInsurance: 0
                         totalPayment: 1863.99
+                        isGracePeriod: false
+                partialGrace:
+                  summary: Partial grace of 3 months, bonus applied (schedule shortened to rows 1 to 4 and the last of 240)
+                  value:
+                    simulationId: 07bf1e69-7ee7-4285-af77-84c420c6cf4a
+                    financedAmount: 219800
+                    monthlyInstallment: 1918.11
+                    totalPaid: 459268.38
+                    totalInterest: 239468.7
+                    additionalCosts: 0
+                    tcea: 0.0885
+                    irr: 0.0885
+                    npv: -16074.7
+                    benefit:
+                      name: Good Payer Bonus
+                      eligible: true
+                      appliedAmount: 18200
+                    assumptions:
+                      monthlyPropertyInsurance: 0
+                      monthlyCreditLifeInsurance: 0
+                      administrativeExpenses: 0
+                      annualDiscountRate: 0.1
+                    amortizationSchedule:
+                      - period: 1
+                        paymentDate: "2026-11-01"
+                        openingBalance: 219800
+                        installment: 1558.77
+                        interest: 1558.77
+                        amortization: 0
+                        remainingBalance: 219800
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 1558.77
+                        isGracePeriod: true
+                      - period: 2
+                        paymentDate: "2026-12-01"
+                        openingBalance: 219800
+                        installment: 1558.77
+                        interest: 1558.77
+                        amortization: 0
+                        remainingBalance: 219800
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 1558.77
+                        isGracePeriod: true
+                      - period: 3
+                        paymentDate: "2027-01-01"
+                        openingBalance: 219800
+                        installment: 1558.77
+                        interest: 1558.77
+                        amortization: 0
+                        remainingBalance: 219800
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 1558.77
+                        isGracePeriod: true
+                      - period: 4
+                        paymentDate: "2027-02-01"
+                        openingBalance: 219800
+                        installment: 1918.11
+                        interest: 1558.77
+                        amortization: 359.35
+                        remainingBalance: 219440.65
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 1918.11
+                        isGracePeriod: false
+                      - period: 240
+                        paymentDate: "2046-10-01"
+                        openingBalance: 1904.6
+                        installment: 1918.11
+                        interest: 13.51
+                        amortization: 1904.6
+                        remainingBalance: 0
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 1918.11
+                        isGracePeriod: false
+                totalGrace:
+                  summary: Total grace of 3 months, bonus applied (schedule shortened to rows 1 to 4 and the last of 240)
+                  value:
+                    simulationId: 9e5d77df-c0df-4c36-9943-1f1823ecf5a3
+                    financedAmount: 219800
+                    monthlyInstallment: 1959.21
+                    totalPaid: 464332.77
+                    totalInterest: 244532.6
+                    additionalCosts: 0
+                    tcea: 0.0885
+                    irr: 0.0885
+                    npv: -16410.74
+                    benefit:
+                      name: Good Payer Bonus
+                      eligible: true
+                      appliedAmount: 18200
+                    assumptions:
+                      monthlyPropertyInsurance: 0
+                      monthlyCreditLifeInsurance: 0
+                      administrativeExpenses: 0
+                      annualDiscountRate: 0.1
+                    amortizationSchedule:
+                      - period: 1
+                        paymentDate: "2026-11-01"
+                        openingBalance: 219800
+                        installment: 0
+                        interest: 1558.77
+                        amortization: 0
+                        remainingBalance: 221358.77
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 0
+                        isGracePeriod: true
+                      - period: 2
+                        paymentDate: "2026-12-01"
+                        openingBalance: 221358.77
+                        installment: 0
+                        interest: 1569.82
+                        amortization: 0
+                        remainingBalance: 222928.59
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 0
+                        isGracePeriod: true
+                      - period: 3
+                        paymentDate: "2027-01-01"
+                        openingBalance: 222928.59
+                        installment: 0
+                        interest: 1580.95
+                        amortization: 0
+                        remainingBalance: 224509.54
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 0
+                        isGracePeriod: true
+                      - period: 4
+                        paymentDate: "2027-02-01"
+                        openingBalance: 224509.54
+                        installment: 1959.21
+                        interest: 1592.16
+                        amortization: 367.04
+                        remainingBalance: 224142.49
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 1959.21
+                        isGracePeriod: false
+                      - period: 240
+                        paymentDate: "2046-10-01"
+                        openingBalance: 1945.41
+                        installment: 1959.21
+                        interest: 13.8
+                        amortization: 1945.41
+                        remainingBalance: 0
+                        propertyInsurance: 0
+                        creditLifeInsurance: 0
+                        totalPayment: 1959.21
                         isGracePeriod: false
                 outOfRange:
                   summary: Bonus requested but the property does not qualify (schedule shortened to 3 of 240 rows)
@@ -420,6 +600,101 @@ paths:
           $ref: "#/components/responses/ValidationError"
         "429":
           description: Too many messages from the same address. Try again in a minute.
+  /api/scenarios:
+    post:
+      tags: [Scenarios]
+      operationId: createScenario
+      summary: Save one of the buyer's simulations under a name (US06)
+      description: |
+        Only for buyers. The simulation must have been calculated with the buyer's token, so it belongs to the buyer;
+        otherwise the response is 404. The response carries the figures of the simulation, so the apps can list and
+        compare scenarios (US07) without calling the simulation endpoint again.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateScenarioRequest"
+            example:
+              name: Plazo 20 años con bono
+              simulationId: 3f9b8c2e-6a1d-4c58-9e0f-7d2b5a1c4e90
+      responses:
+        "201":
+          description: The scenario was saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScenarioResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          description: Missing or invalid token.
+        "403":
+          description: The token does not belong to a buyer.
+        "404":
+          description: The simulation does not exist or belongs to another buyer.
+    get:
+      tags: [Scenarios]
+      operationId: listScenarios
+      summary: List the buyer's saved scenarios, newest first (US06)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: The buyer's scenarios. Empty when there are none.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScenarioResponse"
+        "401":
+          description: Missing or invalid token.
+        "403":
+          description: The token does not belong to a buyer.
+  /api/events:
+    post:
+      tags: [Events]
+      operationId: createUsageEvent
+      summary: Store an anonymous usage event (TS09)
+      description: |
+        Anonymous and write-only. The Landing Page, the mobile app and the web app send one event per user action so
+        the experiments of chapter VIII can measure the hypotheses. Events never carry personal data: `sessionId` is a
+        random identifier created by the client, property keys that look like personal data (email, phone, dni, name,
+        password, address) are rejected, and property values are only texts (100 characters), numbers or booleans.
+        Event names belong to a closed list. At most 120 events per minute are accepted from the same client address,
+        and the body cannot exceed 8 KB.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUsageEventRequest"
+            example:
+              sessionId: 3f9b8c2e-6a1d-4c58-9e0f
+              source: mobile
+              name: simulation_completed
+              properties:
+                termInMonths: 240
+                applyGoodPayerBonus: true
+                graceType: none
+      responses:
+        "202":
+          description: The event was stored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsageEventResponse"
+              example:
+                id: 0d5c7b52-1c1e-4a0a-8f3e-2b7a9d1c4e66
+                receivedAt: "2026-11-12T15:00:00+00:00"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "429":
+          description: Too many events from the same address. Try again in a minute.
 components:
   securitySchemes:
     bearerAuth:
@@ -463,6 +738,86 @@ components:
           type: string
           minLength: 1
           maxLength: 2000
+    CreateScenarioRequest:
+      type: object
+      required: [name, simulationId]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+        simulationId:
+          type: string
+          format: uuid
+    ScenarioResponse:
+      type: object
+      required: [id, name, simulationId, createdAt]
+      description: A figure is null when the stored simulation does not carry it.
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        simulationId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        propertyPrice: { type: number, nullable: true }
+        downPayment: { type: number, nullable: true }
+        annualEffectiveRate: { type: number, nullable: true }
+        termInMonths: { type: integer, nullable: true }
+        gracePeriodMonths: { type: integer, nullable: true }
+        graceType: { type: string, nullable: true, enum: [none, total, partial, null] }
+        applyGoodPayerBonus: { type: boolean, nullable: true }
+        goodPayerBonus: { type: number, nullable: true }
+        financedAmount: { type: number, nullable: true }
+        monthlyInstallment: { type: number, nullable: true }
+        totalPaid: { type: number, nullable: true }
+        totalInterest: { type: number, nullable: true }
+        tcea: { type: number, nullable: true }
+        npv: { type: number, nullable: true }
+        irr: { type: number, nullable: true }
+    CreateUsageEventRequest:
+      type: object
+      required: [sessionId, source, name]
+      properties:
+        sessionId:
+          type: string
+          pattern: "^[A-Za-z0-9_-]{8,64}$"
+          description: Random identifier of the session, created by the client. Never a user id.
+        source:
+          type: string
+          enum: [landing, mobile, web]
+        name:
+          type: string
+          enum:
+            - page_viewed
+            - app_opened
+            - simulation_started
+            - simulation_completed
+            - schedule_opened
+            - language_changed
+            - contact_message_sent
+            - scenario_saved
+            - scenarios_compared
+            - pdf_exported
+            - lead_sent
+        properties:
+          type: object
+          maxProperties: 20
+          description: Optional context of the event. Values are texts (at most 100 characters), numbers or booleans.
+          additionalProperties:
+            oneOf:
+              - type: string
+                maxLength: 100
+              - type: number
+              - type: boolean
+    UsageEventResponse:
+      type: object
+      required: [id, receivedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        receivedAt:
+          type: string
+          format: date-time
     ContactMessageResponse:
       type: object
       required: [id, createdAt]
@@ -589,13 +944,21 @@ components:
           type: integer
           minimum: 0
           default: 0
-          description: Months of grace at the start of the loan (US03, not exposed by the apps in this delivery).
+          description: |
+            Months of grace at the start of the loan (US03). Their rows have `isGracePeriod: true` in the schedule.
+            It must be lower than `termInMonths`, and greater than 0 exactly when `graceType` is `total` or `partial`.
         graceType:
           type: string
           enum: [none, total, partial]
           default: none
           description: |
-            `total` capitalizes the interest of each grace month, `partial` pays only the interest.
+            `total`: nothing is paid during the grace and the interest of each month is added to the balance
+            (capitalized). `partial`: only the interest is paid and the balance does not change.
+
+            In both cases `monthlyInstallment` is the regular installment of the first month after the grace,
+            calculated on the balance at that moment (after a total grace that balance already includes the
+            capitalized interest), so the loan ends at zero with equal installments. Insurance, when configured, is
+            still charged during the grace months.
         applyGoodPayerBonus:
           type: boolean
           default: false

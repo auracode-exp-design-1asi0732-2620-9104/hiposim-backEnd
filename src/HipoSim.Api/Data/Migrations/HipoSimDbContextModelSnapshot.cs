@@ -281,6 +281,42 @@ namespace HipoSim.Api.Data.Migrations
                     b.ToTable("lead_status_changes", (string)null);
                 });
 
+            modelBuilder.Entity("HipoSim.Api.Data.Scenario", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BuyerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("buyer_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("SimulationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("simulation_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SimulationId")
+                        .HasDatabaseName("ix_scenarios_simulation_id");
+
+                    b.HasIndex("BuyerId", "CreatedAt")
+                        .HasDatabaseName("ix_scenarios_buyer_id_created_at");
+
+                    b.ToTable("scenarios", (string)null);
+                });
+
             modelBuilder.Entity("HipoSim.Api.Data.StoredSimulation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -312,6 +348,56 @@ namespace HipoSim.Api.Data.Migrations
                         .HasDatabaseName("ix_simulations_buyer_id");
 
                     b.ToTable("simulations", (string)null);
+                });
+
+            modelBuilder.Entity("HipoSim.Api.Data.UsageEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<string>("Properties")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("properties");
+
+                    b.Property<string>("SessionId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("session_id");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("source");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurredAt")
+                        .HasDatabaseName("ix_usage_events_occurred_at");
+
+                    b.HasIndex("SessionId")
+                        .HasDatabaseName("ix_usage_events_session_id");
+
+                    b.HasIndex("Name", "OccurredAt")
+                        .HasDatabaseName("ix_usage_events_name_occurred_at");
+
+                    b.ToTable("usage_events", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_usage_events_source", "source IN ('landing', 'mobile', 'web')");
+                        });
                 });
 
             modelBuilder.Entity("HipoSim.Api.Data.AppUser", b =>
@@ -370,6 +456,21 @@ namespace HipoSim.Api.Data.Migrations
                         .WithMany()
                         .HasForeignKey("LeadId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("HipoSim.Api.Data.Scenario", b =>
+                {
+                    b.HasOne("HipoSim.Api.Data.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("BuyerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HipoSim.Api.Data.StoredSimulation", null)
+                        .WithMany()
+                        .HasForeignKey("SimulationId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

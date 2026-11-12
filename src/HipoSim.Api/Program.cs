@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using HipoSim.Api.Auth;
 using HipoSim.Api.Contact;
+using HipoSim.Api.Events;
 using HipoSim.Api.Data;
 using HipoSim.Api.Options;
 using HipoSim.Api.Swagger;
@@ -65,24 +66,32 @@ builder.Services.AddCors(options => options.AddPolicy("hiposim-clients", policy 
         policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod();
 }));
 
-// The contact form is anonymous: at most 5 messages per minute from the same client address.
+// Anonymous endpoints are limited per client address. Behind a reverse proxy (Render) it arrives in X-Forwarded-For.
+static string ClientAddress(HttpContext context)
+{
+    var forwarded = context.Request.Headers["X-Forwarded-For"].ToString().Split(',')[0].Trim();
+    return forwarded.Length > 0 ? forwarded : context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+}
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    // The contact form: at most 5 messages per minute from the same address.
     options.AddPolicy(ContactMessagesController.RateLimitPolicy, context =>
-    {
-        // Behind a reverse proxy (Render) the client address arrives in X-Forwarded-For.
-        var forwarded = context.Request.Headers["X-Forwarded-For"].ToString().Split(',')[0].Trim();
-        var client = forwarded.Length > 0
-            ? forwarded
-            : context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-        return RateLimitPartition.GetFixedWindowLimiter(client, _ => new FixedWindowRateLimiterOptions
+        RateLimitPartition.GetFixedWindowLimiter(ClientAddress(context), _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = 5,
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0
-        });
-    });
+        }));
+    // Usage events (TS09): a person using an app sends a few per minute; 120 leaves room without allowing floods.
+    options.AddPolicy(UsageEventsController.RateLimitPolicy, context =>
+        RateLimitPartition.GetFixedWindowLimiter(ClientAddress(context), _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 120,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
 });
 
 builder.Services.AddResponseCompression(options => options.EnableForHttps = true);
