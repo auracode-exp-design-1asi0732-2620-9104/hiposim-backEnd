@@ -14,4 +14,7 @@ public sealed record SimulationRecord(
 public interface ISimulationRepository
 {
     Task AddAsync(SimulationRecord record, CancellationToken cancellationToken = default);
+
+    /// <summary>The persisted simulation, or null when the id is unknown.</summary>
+    Task<SimulationRecord?> FindAsync(Guid id, CancellationToken cancellationToken = default);
 }

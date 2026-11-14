@@ -92,6 +92,86 @@ public class AmortizationCalculatorTests
         Assert.Equal(0.0, result.Schedule[^1].RemainingBalance, 2);
     }
 
+    // Deviation D5: after a total grace the regular installment is calculated on the capitalized balance. The expected
+    // values below use the closed French formula with the rate and the compounding written out here, not engine code.
+    [Fact]
+    public void BuildSchedule_WhenTotalGrace_TheInstallmentRepaysTheCapitalizedBalanceInEqualPayments()
+    {
+        const double financed = 219800;
+        const int term = 240;
+        const int grace = 3;
+        var rate = Math.Pow(1.0885, 30.0 / 360) - 1;
+        var capitalized = financed * Math.Pow(1 + rate, grace);
+        var expectedInstallment = capitalized * rate / (1 - Math.Pow(1 + rate, -(term - grace)));
+
+        var result = AmortizationCalculator.BuildSchedule(new AmortizationRequest(
+            FinancedAmount: financed,
+            MonthlyRate: rate,
+            TermInMonths: term,
+            StartDate: new DateOnly(2026, 10, 1),
+            GraceType: GraceType.Total,
+            GraceMonths: grace));
+
+        Assert.Equal(expectedInstallment, result.RegularInstallment, 2);
+        Assert.Equal(term, result.Schedule.Count);
+        Assert.Equal(Math.Round(capitalized, 2), result.Schedule[grace - 1].RemainingBalance, 2);
+        Assert.All(result.Schedule.Take(grace), entry => Assert.Equal(0.0, entry.Installment));
+        // Equal payments: even the last installment is the regular one (it only absorbs the cents of rounding).
+        Assert.All(
+            result.Schedule.Skip(grace),
+            entry => Assert.InRange(entry.Installment, result.RegularInstallment - 0.10, result.RegularInstallment + 0.10));
+        Assert.Equal(0.0, result.Schedule[^1].RemainingBalance, 2);
+        Assert.InRange(result.BalloonAmount, -0.10, 0.10);
+    }
+
+    [Fact]
+    public void BuildSchedule_WhenTotalGraceAndBalloon_TheBalloonShareAppliesToTheCapitalizedBalance()
+    {
+        const double financed = 100000;
+        const int term = 120;
+        const int grace = 6;
+        const double balloon = 0.20;
+        var rate = Math.Pow(1.09, 30.0 / 360) - 1;
+        var capitalized = financed * Math.Pow(1 + rate, grace);
+        var amortizable = capitalized * (1 - balloon);
+        var expectedInstallment = amortizable * rate / (1 - Math.Pow(1 + rate, -(term - grace)));
+
+        var result = AmortizationCalculator.BuildSchedule(new AmortizationRequest(
+            FinancedAmount: financed,
+            MonthlyRate: rate,
+            TermInMonths: term,
+            StartDate: new DateOnly(2026, 10, 1),
+            GraceType: GraceType.Total,
+            GraceMonths: grace,
+            BalloonRatio: balloon));
+
+        Assert.Equal(expectedInstallment, result.RegularInstallment, 2);
+        Assert.Equal(0.0, result.Schedule[^1].RemainingBalance, 2);
+        Assert.True(result.BalloonAmount > 0);
+    }
+
+    [Fact]
+    public void BuildSchedule_WhenPartialGrace_TheInstallmentStaysOnTheFinancedAmount()
+    {
+        const double financed = 219800;
+        const int term = 240;
+        const int grace = 3;
+        var rate = Math.Pow(1.0885, 30.0 / 360) - 1;
+        var expectedInstallment = financed * rate / (1 - Math.Pow(1 + rate, -(term - grace)));
+
+        var result = AmortizationCalculator.BuildSchedule(new AmortizationRequest(
+            FinancedAmount: financed,
+            MonthlyRate: rate,
+            TermInMonths: term,
+            StartDate: new DateOnly(2026, 10, 1),
+            GraceType: GraceType.Partial,
+            GraceMonths: grace));
+
+        Assert.Equal(expectedInstallment, result.RegularInstallment, 2);
+        Assert.Equal(financed, result.Schedule[grace].RemainingBalance + result.Schedule[grace].Amortization, 2);
+        Assert.Equal(0.0, result.Schedule[^1].RemainingBalance, 2);
+    }
+
     [Fact]
     public void BuildSchedule_WhenRateIsZero_SplitsCapitalEvenly()
     {

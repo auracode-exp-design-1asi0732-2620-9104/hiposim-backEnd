@@ -79,6 +79,8 @@ public class ContractConformanceTests
 
     [Theory]
     [InlineData("withBonus")]
+    [InlineData("partialGrace")]
+    [InlineData("totalGrace")]
     [InlineData("outOfRange")]
     public async Task Post_WhenSendingAContractExample_ReturnsTheDocumentedResponse(string exampleName)
     {
@@ -106,14 +108,13 @@ public class ContractConformanceTests
             Assert.Equal(Number(expectedAssumptions[field]), body.GetProperty("assumptions").GetProperty(field).GetDouble(), 6);
         }
 
-        // The documented schedule shows the first two rows and the last one of the real 240.
+        // The documented schedule shows some rows of the real 240 (the first ones and the last one); each is found by its period.
         var schedule = body.GetProperty("amortizationSchedule");
         var documentedRows = (List<object>)expected["amortizationSchedule"];
-        int[] actualIndexes = [0, 1, schedule.GetArrayLength() - 1];
         for (var row = 0; row < documentedRows.Count; row++)
         {
             var documented = (Dictionary<object, object>)documentedRows[row];
-            var actual = schedule[actualIndexes[row]];
+            var actual = schedule[int.Parse((string)documented["period"]) - 1];
             Assert.Equal(int.Parse((string)documented["period"]), actual.GetProperty("period").GetInt32());
             Assert.Equal((string)documented["paymentDate"], actual.GetProperty("paymentDate").GetString());
             Assert.Equal(bool.Parse((string)documented["isGracePeriod"]), actual.GetProperty("isGracePeriod").GetBoolean());
@@ -122,6 +123,51 @@ public class ContractConformanceTests
                 Assert.Equal(Number(documented[field]), actual.GetProperty(field).GetDouble(), 6);
             }
         }
+    }
+
+    private static readonly string[] ReportPath = ["paths", "/api/simulations/{id}/report", "get"];
+
+    [Fact]
+    public async Task GetReport_WhenDownloadingAPdf_ReturnsTheDocumentedMediaTypeAndFileName()
+    {
+        await using var host = await SimulationsTestHost.StartAsync();
+        var created = await PostAsync(host, ToJson(Node([.. SimulationPath, "requestBody", "content", "application/json", "examples", "withBonus", "value"]))!.ToJsonString());
+        var id = created.Body.GetProperty("simulationId").GetString();
+        var documented = Map([.. ReportPath, "responses", "200", "content"]);
+
+        var response = await host.GetAsync($"/api/simulations/{id}/report");
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(["application/pdf"], documented.Keys.Cast<string>());
+        Assert.Equal("application/pdf", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("attachment", response.Content.Headers.ContentDisposition?.DispositionType);
+        Assert.Equal($"hiposim-simulacion-{id}.pdf", response.Content.Headers.ContentDisposition?.FileName);
+    }
+
+    [Theory]
+    [InlineData("403", "11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222")]
+    [InlineData("404", null, null)]
+    public async Task GetReport_WhenTheDocumentedErrorHappens_ReturnsTheDocumentedProblem(string status, string? ownerId, string? callerId)
+    {
+        await using var host = await SimulationsTestHost.StartAsync();
+        var expected = Map([.. ReportPath, "responses", status, "content", "application/problem+json", "example"]);
+        var id = Guid.NewGuid().ToString();
+        if (ownerId is not null)
+        {
+            var created = await host.PostAsync(
+                ToJson(Node([.. SimulationPath, "requestBody", "content", "application/json", "examples", "withBonus", "value"]))!.ToJsonString(),
+                ownerId);
+            using var createdBody = JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+            id = createdBody.RootElement.GetProperty("simulationId").GetString()!;
+        }
+
+        var response = await host.GetAsync($"/api/simulations/{id}/report", callerId);
+
+        Assert.Equal(int.Parse(status), (int)response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal((string)expected["title"], document.RootElement.GetProperty("title").GetString());
+        Assert.Equal(int.Parse((string)expected["status"]), document.RootElement.GetProperty("status").GetInt32());
     }
 
     [Theory]

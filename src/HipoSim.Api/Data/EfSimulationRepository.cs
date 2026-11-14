@@ -1,5 +1,7 @@
 using System.Text.Json;
+using HipoSim.FinancialEngine;
 using HipoSim.Simulations;
+using Microsoft.EntityFrameworkCore;
 
 namespace HipoSim.Api.Data;
 
@@ -19,5 +21,22 @@ public sealed class EfSimulationRepository(HipoSimDbContext database) : ISimulat
             ResponseJson = JsonSerializer.Serialize(record.Response, JsonOptions)
         });
         await database.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<SimulationRecord?> FindAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var stored = await database.Simulations.AsNoTracking()
+            .FirstOrDefaultAsync(simulation => simulation.Id == id, cancellationToken);
+        if (stored is null)
+        {
+            return null;
+        }
+
+        return new SimulationRecord(
+            stored.Id,
+            stored.BuyerId,
+            stored.CreatedAt,
+            JsonSerializer.Deserialize<LoanSimulationInput>(stored.InputJson, JsonOptions)!,
+            JsonSerializer.Deserialize<SimulationResponse>(stored.ResponseJson, JsonOptions)!);
     }
 }
