@@ -6,12 +6,12 @@ Documento de la tarea EXP2 del Sprint 3-4: exportar los eventos de uso a CSV y c
 
 | Pieza | Estado al 2026-11-09 |
 |:--|:--|
-| Tabla `usage_events` y `POST /api/events` (TS09, Gustavo) | **No está en el repositorio.** Ninguna rama remota contiene archivos con `event`, `usage` o `kpi` en el nombre. |
+| Tabla `usage_events` y `POST /api/events` (TS09) | Hecho y desplegado en Render (PR #14). Columnas: `id`, `session_id`, `source`, `name`, `occurred_at`, `properties`. |
 | Exportador a CSV (`tools/export_usage_events.py`) | Hecho. No supone ninguna columna: exporta las que tenga la tabla. |
 | Calculador de KPI (`tools/compute_kpis.py`) | Hecho. Las columnas, los eventos y los KPI se definen en un archivo JSON. |
-| Nombres reales de columnas y de eventos | Pendiente de TS09 y TS10. |
+| Nombres reales de columnas y de eventos | Hecho: `tools/kpi_config.json` usa `name`, `occurred_at`, `session_id` y `source`, y los eventos que envían el Landing (TS10a) y el móvil (TS10b). |
 | Lista de KPI | Definida por Franco López (autor de la tarea). Un compañero del equipo estuvo de acuerdo, el 2026-11-09, en que la defina él; no hay una aprobación por escrito (sección 3.2). |
-| Eventos que los KPI necesitan | Definidos en la sección 3.4. Falta confirmar que Landing y móvil los envían. |
+| Eventos que los KPI necesitan | Confirmados: el Landing envía `page_viewed`, `simulation_started`, `simulation_completed`, `schedule_opened`, `language_changed` y `contact_message_sent`; el móvil envía `app_opened`, `simulation_started`, `simulation_completed`, `schedule_opened`, `scenario_saved`, `scenarios_compared`, `pdf_exported` y `lead_sent`. |
 | Resultados | **Ninguno.** Este documento no contiene datos reales ni cifras de uso, porque todavía no se exportó nada. |
 
 ## **2. Export to CSV**

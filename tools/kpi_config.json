@@ -1,0 +1,20 @@
+{
+  "_note": "Real configuration for the usage_events table of TS09 and the events sent by the Landing Page (TS10a) and the mobile app (TS10b).",
+  "columns": {
+    "event": "name",
+    "time": "occurred_at",
+    "session": "session_id",
+    "source": "source"
+  },
+  "kpis": [
+    { "id": "sessions", "label": "Sesiones con al menos un evento", "type": "sessions" },
+    { "id": "sim_started", "label": "Simulaciones iniciadas", "type": "count", "event": "simulation_started" },
+    { "id": "sim_completed", "label": "Simulaciones completadas", "type": "count", "event": "simulation_completed" },
+    { "id": "completion_rate", "label": "Tasa de finalizacion de la simulacion", "type": "ratio", "numerator": "sim_completed", "denominator": "sim_started" },
+    { "id": "sessions_with_sim", "label": "Sesiones con una simulacion completada", "type": "sessions", "event": "simulation_completed" },
+    { "id": "sessions_with_contact", "label": "Sesiones con un contacto enviado", "type": "sessions", "event": "contact_message_sent" },
+    { "id": "contact_conversion", "label": "Conversion a contacto", "type": "ratio", "numerator": "sessions_with_contact", "denominator": "sessions_with_sim" },
+    { "id": "pdf_downloads", "label": "Descargas de PDF", "type": "count", "event": "pdf_exported" },
+    { "id": "time_to_first_sim", "label": "Mediana de tiempo hasta la primera simulacion completada", "type": "median_seconds_between", "to": "simulation_completed" }
+  ]
+}
